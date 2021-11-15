@@ -73,7 +73,6 @@ class Plots:
 		randkey,*subkeys=jax.random.split(randkey,5)
 		vecs=[jax.random.uniform(subkeys[i],shape=(self.n,self.d),minval=-1,maxval=1) for i in [0,1]]
 		X=-(vecs[0]+vecs[1])/2
-		print(vecs)
 		self.levelsets(axes[0],self.ansatz.evaluate,X,vecs)
 		self.levelsets(axes[1],self.truth.evaluate,X,vecs)
 
