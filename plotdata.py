@@ -1,4 +1,3 @@
-# author: Nilin 
 import learning
 import math
 import numpy as np

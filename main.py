@@ -1,5 +1,3 @@
-#author: nilin
-
 import learning
 import numpy as np
 import pickle
