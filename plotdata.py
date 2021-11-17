@@ -27,6 +27,8 @@ class Plots:
 			self.n=self.params['n']
 			self.d=self.params['d']
 
+			self.symtype=alldata['symtype']
+
 
 
 ##################################################################################################################################################################
@@ -45,7 +47,7 @@ class Plots:
 		axes[0].plot(I,ylist,label="true f",color='b')
 		axes[0].plot(I,flist,label="Ansatz",color='r')
 
-		axes[0].set_ylim(-2,2)	
+		axes[0].set_ylim(-3,3)	
 		axes[0].set_xticklabels([])
 
 	
@@ -127,31 +129,31 @@ class Plots:
 
 	
 
-def allplots(plots):
+	def allplots(self):
 
-	space=' '*25
-	line='-'*20
-	vlines=('\n'+space+'     |'+space+'         |')*15+'\n'
-	square4pt=space+'  f(X)-----------'+line+'f(X+v2)'+vlines+space+'  f(X+v1)-----------'+line+'f(X+v1+v2)\n'
-	print('\nDescription of 4-point level set plot: Corners correspond to\n\n'+square4pt)
+		space=' '*25
+		line='-'*20
+		vlines=('\n'+space+'     |'+space+'         |')*15+'\n'
+		square4pt=space+'  f(X)-----------'+line+'f(X+v2)'+vlines+space+'  f(X+v1)-----------'+line+'f(X+v1+v2)\n'
+		print('\nDescription of 4-point level set plot: Corners correspond to\n\n'+square4pt)
 
-	square=space+'f(0,0,x3..)=0'+line+'f(x1,x2,x3..)'+vlines+space+'f(x2,x1,x3..)'+line+'--f(x1+x2,x1+x2,x3..)=0\n'
-	print('\nDescription of antisymmetry plot: Corners correspond to\n\n'+square)
+		square=space+'f(0,0,x3..)--'+line+'f(x1,x2,x3..)'+vlines+space+'f(x2,x1,x3..)'+line+'--f(x1+x2,x1+x2,x3..)\n'
+		print('\nDescription of (anti)symmetry plot: Corners correspond to\n\n'+square)
 
 
 
-	randkey=jax.random.PRNGKey(1)
+		randkey=jax.random.PRNGKey(np.random.randint(1000))
 
-	randkey,subkey=jax.random.split(randkey)
-	plots.plotgrid('4-point level sets with no antisymmetry property (see plot description in terminal)',plots.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
+		randkey,subkey=jax.random.split(randkey)
+		self.plotgrid('4-point level sets property',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
 
-	randkey,subkey=jax.random.split(randkey)
-	plots.plotgrid('Antisymmetry plots (see plot description in terminal)',plots.showsymmetry,subkey,A=1,B=1,savename='antisymmetry')
+		randkey,subkey=jax.random.split(randkey)
+		self.plotgrid('Antisymmetry plots',self.showsymmetry,subkey,A=1,B=1,savename='antisymmetry')
 
-	randkey,subkey=jax.random.split(randkey)
-	plots.plotgrid('segments',plots.segment,subkey,b=1,A=3,B=5,savename='segments')
+		randkey,subkey=jax.random.split(randkey)
+		self.plotgrid('segments',self.segment,subkey,b=1,A=3,B=5,savename='segments')
 
-	plt.show()
+		plt.show()
 	
 
 
@@ -160,7 +162,7 @@ if __name__=='__main__':
 	if(filename==""):
 		filename="most_recent"
 	plots=Plots("data/"+filename)
-	allplots(plots)	
+	plots.allplots()
 	
 
 

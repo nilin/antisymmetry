@@ -1,0 +1,8 @@
+d 2
+n 3
+m_truth 10
+p 100
+m 50
+threshold .05
+training_batch_size 1000
+test_batch_size 250
