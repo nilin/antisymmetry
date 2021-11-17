@@ -36,7 +36,7 @@ def input_remaining_params(params,paramsfolder):
 def initialize(ID,randkey,args):
 
 	if(len(args)==0 or args[0] not in {'a','s'}):
-		print('='*100+'\n\nMissing symmetry type argument. Please run as\n>>python3 main.py a [args]\nor\n>>python3 main.py s [args]\nwhere a/s is for antisymmetric or symmetric.\n\n'+'='*100)
+		print('='*100+'\n\nMissing symmetry type argument. Please run as\n\n>>python3 main.py a default\n\nfor antisymmetric or\n\n>>python3 main.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
 		
 	symtype=args[0]
@@ -50,7 +50,7 @@ def initialize(ID,randkey,args):
 		firstinput=input('\n'+\
 		'='*100+'\nPress ENTER to generate '+antistring+'symmetric function from default parameters.\n'+'='*100+'\n'+\
 		'or\nType name of parameter file. Type \'m\' to input parameters manually.\n'+\
-		'To import true '+antistring+'symmetric function from saved data, type \'i\'.\n')
+		'To import true '+antistring+'symmetric function from saved data, type \'i\'.\n'+'='*100)
 
 	params={}
 	loaded={}

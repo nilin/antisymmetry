@@ -142,7 +142,7 @@ class Plots:
 
 
 
-		randkey=jax.random.PRNGKey(np.random.randint(1000))
+		randkey=jax.random.PRNGKey(1)
 
 		randkey,subkey=jax.random.split(randkey)
 		self.plotgrid('4-point level sets',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')

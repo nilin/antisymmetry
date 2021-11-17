@@ -50,6 +50,10 @@ activation1s=ReLU_leaky
 
 class Ansatz:
 
+	def __init__(self):
+		self.velocity={key:0*M for key,M in self.PARAMS.items()}
+
+
 	def evaluate(self,X_list):	
 		return self.evaluate_(X_list,self.PARAMS)
 
@@ -72,8 +76,10 @@ class Ansatz:
 
 
 	def update(self,learning_rate):
+		r=.9
 		for key,M in self.PARAMS.items():
-			self.PARAMS[key]-=learning_rate*self.dPARAMS[key]
+			self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
+			self.PARAMS[key]+=self.velocity[key]
 
 
 
@@ -93,6 +99,7 @@ class Antisatz(Ansatz):
 		a=jax.random.uniform(subkeys[5],shape=(m,),minval=-1,maxval=1)
 
 		self.PARAMS={'T':T,'c':c,'V':V,'b':b,'W':W,'a':a}
+		super().__init__()
 
 
 	def evaluate_(self,X,PARAMS):
@@ -121,6 +128,7 @@ class SymAnsatz(Ansatz):
 		a=jax.random.uniform(subkeys[5],shape=(m,),minval=-1,maxval=1)
 
 		self.PARAMS={'V':V,'c':c,'W':W,'b':b,'a':a}
+		super().__init__()
 
 
 	def evaluate_(self,X,PARAMS):

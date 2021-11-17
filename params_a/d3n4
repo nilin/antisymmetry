@@ -1,9 +1,9 @@
-d 3
+d 6
 n 4
 m_truth 5
-d_ 300
+d_ 100
 p 50
 m 25
-threshold .2
-training_batch_size 2000
-test_batch_size 500
+threshold .1
+training_batch_size 1000
+test_batch_size 250
