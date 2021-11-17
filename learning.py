@@ -44,7 +44,7 @@ odd_activation=jnp.tanh
 ############## symmetric Ansatz ##########################
 
 activation0s=ReLU_leaky
-activation1s=jnp.tanh
+activation1s=ReLU_leaky
 
 
 

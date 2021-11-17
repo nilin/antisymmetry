@@ -27,7 +27,7 @@ class Plots:
 			self.n=self.params['n']
 			self.d=self.params['d']
 
-			self.symtype=alldata['symtype']
+			self.antistring='anti' if alldata['symtype']=='a' else ''
 
 
 
@@ -102,7 +102,7 @@ class Plots:
 
 	def plotgrid(self,titlebar,plotmethod,randkey,a=1,b=2,A=3,B=3,savename="plot"):	
 
-		fig=plt.figure(titlebar+', d='+str(self.d)+', n='+str(self.n))
+		fig=plt.figure(titlebar+', '+self.antistring+'symmetric case, d='+str(self.d)+', n='+str(self.n))
 		randkey,*subkeys=jax.random.split(randkey,A*B+2)
 
 		gs=GridSpec(A,B,hspace=.3)
@@ -138,17 +138,17 @@ class Plots:
 		print('\nDescription of 4-point level set plot: Corners correspond to\n\n'+square4pt)
 
 		square=space+'f(0,0,x3..)--'+line+'f(x1,x2,x3..)'+vlines+space+'f(x2,x1,x3..)'+line+'--f(x1+x2,x1+x2,x3..)\n'
-		print('\nDescription of (anti)symmetry plot: Corners correspond to\n\n'+square)
+		print('\nDescription of '+self.antistring+'symmetry plot: Corners correspond to\n\n'+square)
 
 
 
 		randkey=jax.random.PRNGKey(np.random.randint(1000))
 
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('4-point level sets property',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
+		self.plotgrid('4-point level sets',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
 
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('Antisymmetry plots',self.showsymmetry,subkey,A=1,B=1,savename='antisymmetry')
+		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename=self.antistring+'symmetry')
 
 		randkey,subkey=jax.random.split(randkey)
 		self.plotgrid('segments',self.segment,subkey,b=1,A=3,B=5,savename='segments')
