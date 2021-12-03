@@ -51,7 +51,7 @@ activation1s=ReLU_leaky
 class Ansatz:
 
 	def __init__(self):
-		self.velocity={key:0*M for key,M in self.PARAMS.items()}
+		self.velocity={key:[0*m for m in M] for key,M in self.PARAMS.items()}
 
 
 	def evaluate(self,X_list):	
@@ -78,8 +78,13 @@ class Ansatz:
 	def update(self,learning_rate):
 		r=.9
 		for key,M in self.PARAMS.items():
-			self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
-			self.PARAMS[key]+=self.velocity[key]
+#			if(len(self.PARAMS[key])==1):
+#				self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
+#				self.PARAMS[key]+=self.velocity[key]
+#			else:
+			for i in range(len(self.PARAMS[key])):
+				self.velocity[key][i]=-(1-r)*learning_rate*self.dPARAMS[key][i]+r*self.velocity[key][i]
+				self.PARAMS[key][i]+=self.velocity[key][i]
 
 
 
@@ -111,6 +116,43 @@ class Antisatz(Ansatz):
 		layer2=odd_activation(jnp.dot(W,determinants_list))
 		return jnp.dot(a,layer2)
 
+
+class FermiNet(Ansatz):
+
+	def __init__(self,params,randomness_key):
+		self.params=params
+		d,d_,L,n=params['d'],params['d_'],params['L'],params['n']
+		key,*subkeys=jax.random.split(randomness_key,3*L+3)
+
+		d_list=[d]+(L-1)*[d_]+[n]
+		self.d_list=d_list
+		W_list=[];V_list=[];b_list=[]
+		for l in range(L):
+			W=jax.random.uniform(subkeys[3*l],shape=(d_list[l+1],d_list[l]),minval=-1,maxval=1)
+			V=jax.random.uniform(subkeys[3*l+1],shape=(d_list[l+1],d_list[l]),minval=-1,maxval=1)
+			b=jax.random.uniform(subkeys[3*l+2],shape=(d_list[l+1],1),minval=-1,maxval=1)
+			W_list.append(W); V_list.append(V); b_list.append(b)
+
+		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list}
+		super().__init__()
+
+
+	def evaluate_(self,X,PARAMS):
+		n=self.params['n']
+		for l in range(self.params['L']):
+			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
+			S=jnp.sum(X,axis=0)
+			#print(jnp.dot(X,W.T).shape)
+			#print(jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0).shape)
+			Y=jnp.tanh(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0))
+			if(self.d_list[l]==self.d_list[l+1]):
+				Y+=X
+			X=Y
+		return jnp.linalg.det(Y)
+
+
+	def regularize(self,r):
+		pass
 
 
 class SymAnsatz(Ansatz):

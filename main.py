@@ -15,6 +15,7 @@ import os
 
 
 
+descriptions={'training_batch_size':'training batch sizes','d':'spatial dimension','n':'number of particles','m_truth':'number of features in true function','threshold':'test error at which to stop training','p':'size of layer 1 in Ansatz','m':'size of layer 2 in Ansatz','L':'number of layers in FermiNet Ansatz'}
 
 
 cast_type=lambda val,key:float(val) if key=='threshold' else int(val)
@@ -86,11 +87,11 @@ def initialize(ID,randkey,args):
 			pickle.dump(savedata,file)
 				
 	if 'Ansatz' not in loaded:
-		ansatz=learning.SymAnsatz(params,randkey2) if symtype=='s' else learning.Antisatz(params,randkey2)
+		#ansatz=learning.SymAnsatz(params,randkey2) if symtype=='s' else learning.Antisatz(params,randkey2)
+		ansatz=learning.SymAnsatz(params,randkey2) if symtype=='s' else learning.FermiNet(params,randkey2)
 		with open('data/initial_guess'+paramtext+'_ID='+ID,'wb') as file:
-			pickle.dump({'Ansatz':ansatz,'params':{key:params[key] for key in {'n','d','p','m'}}},file)
+			pickle.dump({'Ansatz':ansatz,'params':{key:params[key] for key in {'n','d'}}},file)
 
-	descriptions={'training_batch_size':'training batch sizes','d':'spatial dimension','n':'number of particles','m_truth':'number of features in true '+antistring+'symmetrized function','threshold':'test error at which to stop training','p':'size of layer 1 in Ansatz','m':'size of layer 2 in Ansatz'}
 	print_params(params,paramsfolder,descriptions,antistring)
 	return symtype,truth,ansatz,params,paramtext
 
