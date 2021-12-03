@@ -60,7 +60,8 @@ class Ansatz:
 
 	def regularize(self,r):
 		for key,M in self.PARAMS.items():
-			self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
+			for i in range(len(self.PARAMS[key])):
+				self.PARAMS[key][i]=jnp.tanh(self.PARAMS[key][i]/r)*r 
 
 	def sum_loss_(self,data,PARAMS):
 		X_list=data[0]
@@ -78,10 +79,6 @@ class Ansatz:
 	def update(self,learning_rate):
 		r=.9
 		for key,M in self.PARAMS.items():
-#			if(len(self.PARAMS[key])==1):
-#				self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
-#				self.PARAMS[key]+=self.velocity[key]
-#			else:
 			for i in range(len(self.PARAMS[key])):
 				self.velocity[key][i]=-(1-r)*learning_rate*self.dPARAMS[key][i]+r*self.velocity[key][i]
 				self.PARAMS[key][i]+=self.velocity[key][i]
@@ -151,8 +148,6 @@ class FermiNet(Ansatz):
 		return jnp.linalg.det(Y)
 
 
-	def regularize(self,r):
-		pass
 
 
 class SymAnsatz(Ansatz):
