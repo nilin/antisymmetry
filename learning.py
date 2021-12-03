@@ -12,12 +12,14 @@ import time
 import copy
 import jax
 import jax.numpy as jnp
+import optax
 	
 
 
 #loss: y[0]=ansatz(X), y[1]=truth(X) 
 #loss=lambda y:abs(y[0]-y[1])
-loss=lambda y:jnp.sqrt((y[0]-y[1])**2+.01)
+#loss=lambda y:jnp.sqrt((y[0]-y[1])**2+.01)
+loss=lambda y:(y[0]-y[1])**2
 
 
 
@@ -58,29 +60,60 @@ class Ansatz:
 		return self.evaluate_(X_list,self.PARAMS)
 
 
-	def regularize(self,r):
-		for key,M in self.PARAMS.items():
-			self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
 
-	def sum_loss_(self,data,PARAMS):
-		X_list=data[0]
-		y_list=data[1]
+	def sum_loss(self,PARAMS,X_list,y_list):
 		f_list=jax.vmap(self.evaluate_,[0,None])(X_list,PARAMS) #X configurations in parallel
 		fy_list=jnp.array([f_list,y_list])
 		return jnp.sum(jax.vmap(loss,1)(fy_list))
 
 
-	def update_gradients(self,X_list,y_list):	
-		loss,self.dPARAMS=jax.value_and_grad(self.sum_loss_,1)([X_list,y_list],self.PARAMS)
-		return loss
-
-
-	def update(self,learning_rate):
-		r=.9
+	def regularize(self,r):
 		for key,M in self.PARAMS.items():
-			self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
-			self.PARAMS[key]+=self.velocity[key]
+			self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
+#	def update_gradients(self,X_list,y_list):	
+#		loss,self.dPARAMS=jax.value_and_grad(self.sum_loss,0)(self.PARAMS,X_list,y_list)
+#		return loss
+#
+#
+#	def update(self,learning_rate):
+#		r=.9
+#		for key,M in self.PARAMS.items():
+#			self.velocity[key]=-(1-r)*learning_rate*self.dPARAMS[key]+r*self.velocity[key]
+#			self.PARAMS[key]+=self.velocity[key]
 
+
+
+class FermiNet():
+		
+	def __init__(self,params,randomness_key):
+		self.params=params
+		d_list=params['d_list']
+		key,*subkeys=jax.random.split(randomness_key,3+3*len(d_list))
+		self.W_list,self.V_list,self.b_list=[],[],[]
+		for l in range(1,len(d_list)):
+			d_=d_list[l],d=d_list[l-1]
+			W=jax.random.uniform(subkeys[3*l-3],shape=(d_,d),minval=-1,maxval=1)
+			V=jax.random.uniform(subkeys[3*l-2],shape=(d_,d),minval=-1,maxval=1)
+			b=jax.random.uniform(subkeys[3*l-1],shape=(d_,1),minval=-1,maxval=1)
+			self.W_list.append(W)
+			self.V_list.append(V)
+			self.b_list.append(b)
+
+		
+
+	def evaluate_(self,X,PARAMS):
+		W_list=PARAMS['W_list']
+		V_list=PARAMS['V_list']
+		b_list=PARAMS['b_list']
+		X=X.T
+		for l in range(len(self.d_list)):
+			W=W_list[l]
+			V=V_list[l]
+			b=b_list[l]
+			S=jax.sum(X,axis=1)
+			Y=jnp.tanh(jnp.dot(W,X)+jnp.repeat(jnp.dot(V,S)+b,n,axis=1))
+			X=Y
+		return jnp.det(Y)
 
 
 class Antisatz(Ansatz):
@@ -192,39 +225,34 @@ class GenericSymmetric(TwoLayer):
 		return y
 
 
-
-def train_on(truth,ansatz,X_list):
-	y_list=jax.vmap(truth.evaluate)(X_list)
-	loss=ansatz.update_gradients(X_list,y_list)
-	return loss
-
-def train(truth,ansatz,params,randkey):
-	X_list=jax.random.uniform(randkey,shape=(params['samples'],params['n'],params['d']),minval=-1,maxval=1)
-	return train_on(truth,ansatz,X_list)
-	
-def test_on(ansatz,X_list,y_list):
-	f_list=jax.vmap(ansatz.evaluate)(X_list)
-	return f_list,jnp.sum((y_list-f_list)**2)
-
-
-def try_stepsizes_and_learn(truth,ansatz,rates1,rates2,TRAIN_batch_size,test_batch_size,randkey):
-	randkey,subkey=jax.random.split(randkey)
-
-	ansatz.regularize(5)
+def test(truth,ansatz,batchsize,randkey):	
 	n=ansatz.params['n']
 	d=ansatz.params['d']
-	loss=train(truth,ansatz,{'samples':TRAIN_batch_size,'n':n,'d':d},randkey)
+	randkey,subkey=jax.random.split(randkey)
+	X_list=jax.random.uniform(subkey,shape=(batchsize,n,d),minval=-1,maxval=1)
+	Y_list=jax.vmap(truth.evaluate)(X_list)
+	f_list=jax.vmap(ansatz.evaluate)(X_list)
+	return jnp.sum((f_list-Y_list)**2)/batchsize
 
-	ansatz1=copy.deepcopy(ansatz)
-	ansatz2=copy.deepcopy(ansatz)	
-	ansatz1.update(rates1)
-	ansatz2.update(rates2)
 
-	X_test=jax.random.uniform(subkey,shape=(test_batch_size,n,d),minval=-1,maxval=1)
-	y_test=jax.vmap(truth.evaluate)(X_test)
-	_,test_error_1=test_on(ansatz1,X_test,y_test)
-	_,test_error_2=test_on(ansatz2,X_test,y_test)
-	(ansatz,rates)=(ansatz1,rates1) if test_error_1<test_error_2 else (ansatz2,rates2)
-	del ansatz1
-	del ansatz2
-	return ansatz,rates,{'avg_loss':loss/TRAIN_batch_size,'avg_test_error_1':test_error_1/test_batch_size,'avg_test_error_2':test_error_2/test_batch_size,'true_variance':jnp.var(y_test)}
+def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey):
+	opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.5,transition_steps=100))
+	state=opt.init(ansatz.PARAMS)
+	n=ansatz.params['n']
+	d=ansatz.params['d']
+	
+	losses=[]
+	for i in range(batchnumber):
+		randkey,subkey=jax.random.split(randkey)
+		X_list=jax.random.uniform(subkey,shape=(batchsize,n,d),minval=-1,maxval=1)
+		Y_list=jax.vmap(truth.evaluate)(X_list)
+		loss,grads=jax.value_and_grad(ansatz.sum_loss,0)(ansatz.PARAMS,X_list,Y_list)
+		losses.append(loss/batchsize)
+		updates,_=opt.update(grads,state,ansatz.PARAMS)
+		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
+		ansatz.regularize(10)
+
+		randkey,subkey=jax.random.split(randkey)
+		print(str(test(truth,ansatz,100,subkey))+'_____'+str(losses[-1])+'_____'+str(i)+'______',end='\r')
+
+	return losses

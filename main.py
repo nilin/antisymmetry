@@ -8,12 +8,7 @@ import jax
 import jax.numpy as jnp
 import sys
 import os
-
-
-
-
-
-
+import optax
 
 
 
@@ -134,22 +129,26 @@ test_error=float('inf')
 true_variance=1
 
 randkey=randkey1
+losses=learning.learn(truth,ansatz,.01,training_batch_size,params['batch_count'],randkey)
 
-while test_error>params['threshold']*true_variance:
 
-	rate1=rate*1.1
-	rate2=rate/1.1
-	
-	randkey,subkey=jax.random.split(randkey)
-	ansatz,rate,losses=learning.try_stepsizes_and_learn(truth,ansatz,rate1,rate2,TRAIN_batch_size=training_batch_size,test_batch_size=params['test_batch_size'],randkey=subkey)
-	losslist.append([training_batch_size*(len(losslist)+1),losses['avg_test_error_1'],losses['avg_test_error_2'],losses['true_variance']])
-	
-	test_error=min(losses['avg_test_error_1'],losses['avg_test_error_2'])
-	T=round(params['threshold']*50)
-	L=min(round(test_error*50),50)
-	bar1='='*T+'|'+'='*(L-T)+' '*(50-L)
-	print(' '*10+'Trained on '+str(training_batch_size*(len(losslist)+1))+' samples.'+' '*10+'error on latest test set ['+bar1+'] '+f'{test_error:.3}'+'____',end='\r')
-	true_variance=losses['true_variance']
+
+
+#while test_error>params['threshold']*true_variance:
+#
+#	rate1=rate*1.1
+#	rate2=rate/1.1
+#	
+#	randkey,subkey=jax.random.split(randkey)
+#	ansatz,rate,losses=learning.try_stepsizes_and_learn(truth,ansatz,rate1,rate2,TRAIN_batch_size=training_batch_size,test_batch_size=params['test_batch_size'],randkey=subkey)
+#	losslist.append([training_batch_size*(len(losslist)+1),losses['avg_test_error_1'],losses['avg_test_error_2'],losses['true_variance']])
+#	
+#	test_error=min(losses['avg_test_error_1'],losses['avg_test_error_2'])
+#	T=round(params['threshold']*50)
+#	L=min(round(test_error*50),50)
+#	bar1='='*T+'|'+'='*(L-T)+' '*(50-L)
+#	print(' '*10+'Trained on '+str(training_batch_size*(len(losslist)+1))+' samples.'+' '*10+'error on latest test set ['+bar1+'] '+f'{test_error:.3}'+'____',end='\r')
+#	true_variance=losses['true_variance']
 
 
 savedata={'symtype':symtype,'true_f':truth,'Ansatz':ansatz,'params':params,'losslist':losslist}
@@ -159,6 +158,6 @@ with open('data/most_recent','wb') as file:
 	pickle.dump(savedata,file)
 
 
-if(input('\n\n'+'='*100+'\nDone after '+str(training_batch_size*(len(losslist)+1))+' samples. Plot data? (y/n): ')=='y'):
+if(input('\n\n'+'='*100+'\nDone after '+str(training_batch_size*(len(losses)+1))+' samples. Plot data? (y/n): ')=='y'):
 	plots=plotdata.Plots('data/most_recent')
 	plots.allplots()

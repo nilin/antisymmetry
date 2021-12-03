@@ -1,9 +1,0 @@
-d 6
-n 4
-m_truth 5
-d_ 100
-p 50
-m 25
-threshold .1
-training_batch_size 1000
-test_batch_size 250
