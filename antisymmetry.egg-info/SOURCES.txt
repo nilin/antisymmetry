@@ -1,0 +1,10 @@
+setup.py
+antisymmetry/__init__.py
+antisymmetry/learning.py
+antisymmetry/main.py
+antisymmetry/mcmc.py
+antisymmetry/plotdata.py
+antisymmetry.egg-info/PKG-INFO
+antisymmetry.egg-info/SOURCES.txt
+antisymmetry.egg-info/dependency_links.txt
+antisymmetry.egg-info/top_level.txt
