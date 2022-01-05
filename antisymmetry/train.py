@@ -38,7 +38,7 @@ def input_remaining_params(params,paramsfolder):
 def initialize(ID,randkey,args):
 
 	if(len(args)==0 or args[0] not in {'a','s'}):
-		print('='*100+'\n\nMissing symmetry type argument. Please run as\n\n>>python3 main.py a default\n\nfor antisymmetric or\n\n>>python3 main.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
+		print('='*100+'\n\nMissing symmetry type argument. Please run as\n\n>>python3 train.py a default\n\nfor antisymmetric or\n\n>>python3 train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
 		
 	symtype=args[0]
