@@ -1,8 +1,8 @@
-d 3
+d 2
 n 3
 m_truth 5
-d_ 20
+d_ 10
 L 4
 training_batch_size 1000
 test_batch_size 250
-batch_count 4000
+batch_count 1000

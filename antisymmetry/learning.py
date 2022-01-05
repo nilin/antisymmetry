@@ -86,25 +86,22 @@ class Antisatz(Ansatz):
 	def __init__(self,params,randomness_key):
 	
 		self.params=params
-		d,n,d_,p,m=params['d'],params['n'],params['d_'],params['p'],params['m']
+		d,n,p,m=params['d'],params['n'],params['p'],params['m']
 		key,*subkeys=jax.random.split(randomness_key,7)
 
-		T=jax.random.uniform(subkeys[0],shape=(d_,d),minval=-1,maxval=1)
-		c=jax.random.uniform(subkeys[1],shape=(d_,),minval=-1,maxval=1)
-		V=jax.random.uniform(subkeys[2],shape=(p,n,d_),minval=-1,maxval=1)
+		V=jax.random.uniform(subkeys[2],shape=(p,n,d),minval=-1,maxval=1)
 		b=jax.random.uniform(subkeys[3],shape=(p,n),minval=-1,maxval=1)
 		W=jax.random.uniform(subkeys[4],shape=(m,p),minval=-1,maxval=1)
 		a=jax.random.uniform(subkeys[5],shape=(m,),minval=-1,maxval=1)
 
-		self.PARAMS={'T':T,'c':c,'V':V,'b':b,'W':W,'a':a}
+		self.PARAMS={'V':V,'b':b,'W':W,'a':a}
 		super().__init__()
 
 
 	def evaluate_(self,X,PARAMS):
-		T,c,V,b,W,a=(PARAMS[key] for key in ['T','c','V','b','W','a'])
+		V,b,W,a=(PARAMS[key] for key in ['V','b','W','a'])
 		n=self.params['n']
-		Z=activation0a(jnp.dot(T,X.T)+jnp.repeat(jnp.expand_dims(c,1),n,axis=1))
-		square_matrices_list=activation1a(jnp.dot(V,Z)+jnp.repeat(jnp.expand_dims(b,2),n,axis=2))
+		square_matrices_list=activation1a(jnp.dot(V,X.T)+jnp.repeat(jnp.expand_dims(b,2),n,axis=2))
 		determinants_list=jax.vmap(jnp.linalg.det)(square_matrices_list)
 		layer2=odd_activation(jnp.dot(W,determinants_list))
 		return envelope(X)*jnp.dot(a,layer2)

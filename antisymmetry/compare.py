@@ -25,13 +25,11 @@ with open('data/'+filename,"rb") as file:
 	
 	truth=alldata["true_f"]
 	ansatz=alldata["Ansatz"]
-	losslist=jnp.array(alldata["losslist"]).T
 	params=alldata["params"]
 
 	n=params['n']
 	d=params['d']
 
-	antistring='anti' if alldata['symtype']=='a' else ''
 
 
 

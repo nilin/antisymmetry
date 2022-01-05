@@ -19,9 +19,10 @@ import os
 descriptions={'training_batch_size':'training batch sizes','d':'spatial dimension','n':'number of particles','m_truth':'number of features in true function','threshold':'test error at which to stop training','p':'size of layer 1 in Ansatz','m':'size of layer 2 in Ansatz','L':'number of layers in FermiNet Ansatz'}
 
 
-cast_type=lambda val,key:float(val) if key=='threshold' else int(val)
+cast_type=lambda val,key:float(val) if key=='threshold' else val if key=='Ansatz' else int(val)
 
 def input_remaining_params(params,paramsfolder):
+
 	for line in open(paramsfolder+'/default'):
 		key,defaultval=line.split()
 		if key not in params:
@@ -37,13 +38,13 @@ def input_remaining_params(params,paramsfolder):
 
 def initialize(ID,randkey,args):
 
-	if(len(args)==0 or args[0] not in {'a','s'}):
-		print('='*100+'\n\nMissing symmetry type argument. Please run as\n\n>>python3 train.py a default\n\nfor antisymmetric or\n\n>>python3 train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
+	if(len(args)==0 or args[0] not in {'a','f','s'}):
+		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python3 train.py a default\n\nfor Antisatz or\n\n>>python3 train.py f default\n\nfor FermiNet or\n\n>>python3 train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
 		
-	symtype=args[0]
-	paramsfolder='params/'+symtype
-	antistring='anti' if symtype=='a' else ''
+	Ansatztype=args[0]
+	paramsfolder='params/'+Ansatztype
+	antistring='' if Ansatztype=='s' else 'anti'
 
 
 	if(len(args)>1):
@@ -80,7 +81,7 @@ def initialize(ID,randkey,args):
 
 	if 'true_f' not in loaded:
 		truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth']}
-		truth=learning.GenericSymmetric(truth_params,randkey1) if symtype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
+		truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
 		savedata={'f':truth,'params':{key:params[key] for key in {'n','d','m_truth'}}}
 		with open('data/most_recent_true_f','wb') as file:
 			pickle.dump(savedata,file)
@@ -88,16 +89,16 @@ def initialize(ID,randkey,args):
 			pickle.dump(savedata,file)
 				
 	if 'Ansatz' not in loaded:
-		ansatz=learning.SymAnsatz(params,randkey2) if symtype=='s' else learning.Antisatz(params,randkey2)
-		#ansatz=learning.SymAnsatz(params,randkey2) if symtype=='s' else learning.FermiNet(params,randkey2)
+		ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
 		with open('data/initial_guess'+paramtext+'_ID='+ID,'wb') as file:
 			pickle.dump({'Ansatz':ansatz,'params':{key:params[key] for key in {'n','d'}}},file)
 
-	print_params(params,paramsfolder,descriptions,antistring)
-	return symtype,truth,ansatz,params,paramtext
+	print_params(params,paramsfolder,descriptions,antistring,Ansatztype)
+	return Ansatztype,truth,ansatz,params,paramtext
 
-def print_params(params,paramsfolder,descriptions,antistring):
-	print('\n'+'='*100+'\nParameters chosen, '+antistring+'symmetric case\n')
+def print_params(params,paramsfolder,descriptions,antistring,Ansatztype):
+	Azdict={'a':'Antisatz','f':'FermiNet','s':'symmetric'}
+	print('\n'+'='*100+'\nParameters chosen, '+antistring+'symmetric case, '+'Ansatz type '+Azdict[Ansatztype]+'\n')
 	for line in open(paramsfolder+'/default'):
 		key,_=line.split()
 		if key in descriptions:
@@ -113,7 +114,7 @@ def print_params(params,paramsfolder,descriptions,antistring):
 ####################################################################################################################################################################################################
 
 
-foldernames=['theplots','data','params/a','params/s']
+foldernames=['theplots','data','params/a','params/s','params/f']
 for folder in foldernames:
 	if not os.path.exists(folder):
 		os.makedirs(folder)
@@ -127,7 +128,7 @@ ID=str(time.time())
 randkey0=jax.random.PRNGKey(0)
 
 randkey1,subkey=jax.random.split(randkey0)
-symtype,truth,ansatz,params,paramtext=initialize(ID,subkey,args)
+Ansatztype,truth,ansatz,params,paramtext=initialize(ID,subkey,args)
 
 losslist=[]
 rate=.0001
@@ -141,7 +142,7 @@ randkey=randkey1
 losses=learning.learn(truth,ansatz,.01,training_batch_size,params['batch_count'],randkey)
 
 
-savedata={'symtype':symtype,'true_f':truth,'Ansatz':ansatz,'params':params,'losslist':losslist}
+savedata={'Ansatztype':Ansatztype,'true_f':truth,'Ansatz':ansatz,'params':params,'losslist':losslist}
 with open('data/true_f_and_learned_ansatz'+paramtext+'_ID='+ID,'wb') as file:
 	pickle.dump(savedata,file)
 with open('data/most_recent','wb') as file:

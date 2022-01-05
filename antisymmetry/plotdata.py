@@ -21,13 +21,12 @@ class Plots:
 			
 			self.truth=alldata["true_f"]
 			self.ansatz=alldata["Ansatz"]
-			self.losslist=jnp.array(alldata["losslist"]).T
 			self.params=alldata["params"]
 
 			self.n=self.params['n']
 			self.d=self.params['d']
 
-			self.antistring='anti' if alldata['symtype']=='a' else ''
+			self.antistring='' if alldata['Ansatztype']=='s' else 'anti'
 
 
 
