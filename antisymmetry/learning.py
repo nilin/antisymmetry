@@ -270,7 +270,7 @@ def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey):
 		ansatz.regularize(10)
 
 		randkey,subkey=jax.random.split(randkey)
-		print('squared loss: '+str(test(truth,ansatz,100,subkey))+'_____'+str(losses[-1])+'_____'+str(i)+'______',end='\r')
+		print(str(i)+' batches done',end='\r')
 
 	return losses
 
