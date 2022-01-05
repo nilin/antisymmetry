@@ -148,7 +148,7 @@ with open('data/most_recent','wb') as file:
 	pickle.dump(savedata,file)
 
 
-print('\n\n'+'='*100+'\nDone after '+str(training_batch_size*(len(losslist)+1))+' samples. To view plots, run\n>>python plotdata.py\n and press enter when prompted')
+print('\n\n'+'='*100+'\nDone. \n'+100*'='+'\nTo view plots, run\n>>python plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python compare.py\n'+100*'=')
 #if(input('\n\n'+'='*100+'\nDone after '+str(training_batch_size*(len(losslist)+1))+' samples. Plot data? (y/n): ')=='y'):
 #	plots=plotdata.Plots('data/most_recent')
 #	plots.allplots()
