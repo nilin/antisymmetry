@@ -18,7 +18,8 @@ import optax
 
 #loss: y[0]=ansatz(X), y[1]=truth(X) 
 #loss=lambda y:abs(y[0]-y[1])
-loss=lambda y:jnp.sqrt((y[0]-y[1])**2+.01)
+#loss=lambda y:jnp.sqrt((y[0]-y[1])**2+.01)
+loss=lambda y:(y[0]-y[1])**2
 
 
 
@@ -132,8 +133,6 @@ class FermiNet(Ansatz):
 		for l in range(self.params['L']):
 			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
 			S=jnp.sum(X,axis=0)
-			#print(jnp.dot(X,W.T).shape)
-			#print(jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0).shape)
 			Y=jnp.tanh(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0))
 			if(self.d_list[l]==self.d_list[l+1]):
 				Y+=X
@@ -181,17 +180,16 @@ class TwoLayer:
 		self.b=jax.random.uniform(subkeys[1],shape=(m,),minval=-1,maxval=1)
 		self.a=jax.random.uniform(subkeys[2],shape=(m,),minval=-1,maxval=1)
 
-		self.normalize()
-
 	def eval_raw(self,X):
 		X_vec=jnp.ravel(X)
 		layer1=activations_truth[self.activationchoice](jnp.dot(self.W,X_vec)+self.b)
 		return jnp.dot(self.a,layer1)
 		
-	def normalize(self):# ensure true function has variance 1
+	def normalize(self,X_distribution):# ensure true function has variance 1
 		samples=250
 		key=jax.random.PRNGKey(123)
-		X_list=jax.random.uniform(key,shape=(samples,self.params['n'],self.params['d']),minval=-1,maxval=1)
+		
+		X_list=X_distribution(key,samples)
 		y_list=jax.vmap(self.evaluate)(X_list)
 		self.a/=jnp.sqrt(jnp.var(y_list))
 	
@@ -219,7 +217,7 @@ class GenericSymmetric(TwoLayer):
 		for P in itertools.permutations(jnp.identity(len(X))):
 			PX=jnp.matmul(jnp.array(P),X)	
 			y+=self.eval_raw(PX)
-		return y
+		return envelope(X)*y
 
 
 
@@ -248,7 +246,7 @@ def test(truth,ansatz,batchsize,randkey):
 	f_list=jax.vmap(ansatz.evaluate)(X_list)
 	return jnp.sum((f_list-Y_list)**2)/batchsize
 
-def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey):
+def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distribution):
 	opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.5,transition_steps=100))
 	state=opt.init(ansatz.PARAMS)
 	n=ansatz.params['n']
@@ -257,8 +255,7 @@ def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey):
 	losses=[]
 	for i in range(batchnumber):
 		randkey,subkey=jax.random.split(randkey)
-		#X_list=jax.random.uniform(subkey,shape=(batchsize,n,d),minval=-1,maxval=1)
-		X_list=jax.random.normal(subkey,shape=(batchsize,n,d))
+		X_list=X_distribution(subkey,batchsize)
 		Y_list=jax.vmap(truth.evaluate)(X_list)
 		loss,grads=jax.value_and_grad(ansatz.sum_loss,0)(ansatz.PARAMS,X_list,Y_list)
 		losses.append(loss/batchsize)
@@ -267,7 +264,8 @@ def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey):
 		ansatz.regularize(10)
 
 		randkey,subkey=jax.random.split(randkey)
-		print(str(i)+' batches done',end='\r')
+		barlength=100;
+		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(losses[-1],1)))*'\u2588'+(barlength-round(barlength*losses[-1]))*'_'+']',end='\r')
 
 	return losses
 

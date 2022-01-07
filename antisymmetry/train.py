@@ -78,15 +78,17 @@ def initialize(ID,randkey,args):
 	paramtext=''.join(['_'+key+'='+str(val) for key,val in params.items()])
 
 	randkey1,randkey2=jax.random.split(randkey)
+	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 
 	if 'true_f' not in loaded:
 		truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth']}
 		truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
+		truth.normalize(X_distribution)
 		savedata={'f':truth,'params':{key:params[key] for key in {'n','d','m_truth'}}}
-		with open('data/most_recent_true_f','wb') as file:
-			pickle.dump(savedata,file)
-		with open('data/true_f'+paramtext+'_ID='+ID,'wb') as file:
-			pickle.dump(savedata,file)
+#		with open('data/most_recent_true_f','wb') as file:
+#			pickle.dump(savedata,file)
+#		with open('data/true_f'+paramtext+'_ID='+ID,'wb') as file:
+#			pickle.dump(savedata,file)
 				
 	if 'Ansatz' not in loaded:
 		ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
@@ -94,7 +96,7 @@ def initialize(ID,randkey,args):
 			pickle.dump({'Ansatz':ansatz,'params':{key:params[key] for key in {'n','d'}}},file)
 
 	print_params(params,paramsfolder,descriptions,antistring,Ansatztype)
-	return Ansatztype,truth,ansatz,params,paramtext
+	return Ansatztype,truth,ansatz,params,paramtext,X_distribution
 
 def print_params(params,paramsfolder,descriptions,antistring,Ansatztype):
 	Azdict={'a':'Antisatz','f':'FermiNet','s':'symmetric'}
@@ -128,7 +130,7 @@ ID=str(time.time())
 randkey0=jax.random.PRNGKey(0)
 
 randkey1,subkey=jax.random.split(randkey0)
-Ansatztype,truth,ansatz,params,paramtext=initialize(ID,subkey,args)
+Ansatztype,truth,ansatz,params,paramtext,X_distribution=initialize(ID,subkey,args)
 
 losslist=[]
 rate=.0001
@@ -139,7 +141,7 @@ true_variance=1
 randkey=randkey1
 
 
-losses=learning.learn(truth,ansatz,.01,training_batch_size,params['batch_count'],randkey)
+losses=learning.learn(truth,ansatz,.01,training_batch_size,params['batch_count'],randkey,X_distribution)
 
 
 savedata={'Ansatztype':Ansatztype,'true_f':truth,'Ansatz':ansatz,'params':params,'losslist':losslist}
