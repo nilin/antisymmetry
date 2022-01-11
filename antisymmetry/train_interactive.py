@@ -38,7 +38,7 @@ def input_remaining_params(params,paramsfolder):
 def initialize_interactive(ID,randkey,args):
 
 	if(len(args)==0 or args[0] not in {'a','f','s'}):
-		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python3 train.py a default\n\nfor Antisatz or\n\n>>python3 train.py f default\n\nfor FermiNet or\n\n>>python3 train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
+		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python antisymmetry/train_interactive.py a default\n\nfor Antisatz or\n\n>>python antisymmetry/train_interactive.py f default\n\nfor FermiNet or\n\n>>python antisymmetry/train_interactive.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
 		
 	Ansatztype=args[0]

@@ -46,3 +46,7 @@ def initialize_learn_self(ID,randkey,args):
 
 
 train.run(initialize_learn_self)
+
+
+plots=plotdata.Plots("data/most_recent")
+plots.allplots()

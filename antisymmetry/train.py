@@ -100,7 +100,7 @@ def print_params(params,paramsfile,descriptions,Ansatztype):
 def initialize(ID,randkey,args):
 
 	if(len(args)==0 or args[0] not in {'a','f','s'}):
-		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python3 train.py a default\n\nfor Antisatz or\n\n>>python3 train.py f default\n\nfor FermiNet or\n\n>>python3 train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
+		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python antisymmetry.train.py a default\n\nfor Antisatz or\n\n>>python antisymmetry.train.py f default\n\nfor FermiNet or\n\n>>python antisymmetry.train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
 		
 	Ansatztype=args[0]
