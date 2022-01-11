@@ -21,11 +21,11 @@ import os
 
 def initialize_learn_self(ID,randkey,args):
 
-	paramsfolder='params/a'
+	paramsfile='params/test_Antisatz_on_self'
 	Ansatztype='a'
 
 	params={}
-	for line in open(paramsfolder+'/default'):
+	for line in open(paramsfile):
 		key,val=line.split()
 		params[key]=train.cast_type(val,key)
 
@@ -41,7 +41,7 @@ def initialize_learn_self(ID,randkey,args):
 	#ansatz.normalize(X_distribution)
 
 
-	train.print_params(params,paramsfolder,train.descriptions,Ansatztype)
+	train.print_params(params,paramsfile,train.descriptions,Ansatztype)
 	return Ansatztype,truth,ansatz,params,X_distribution
 
 

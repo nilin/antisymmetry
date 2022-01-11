@@ -1,0 +1,6 @@
+d 2
+n 3
+p 20
+m 10
+training_batch_size 500
+batch_count 500
