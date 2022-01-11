@@ -41,6 +41,7 @@ activations_truth=[jnp.abs,jnp.tanh] #[s,a]
 activation0a=ReLU_leaky
 activation1a=jnp.tanh
 odd_activation=jnp.tanh
+FN_activation=jnp.tanh
 
 
 ############## symmetric Ansatz ##########################
@@ -50,9 +51,13 @@ activation1s=ReLU_leaky
 
 ############## localization ########################
 
-envelope=lambda X:jnp.exp(jnp.sum(-jnp.square(X)))
+box=lambda X:jnp.product(jnp.product(jnp.heaviside(1-jnp.square(X),0),axis=-1),axis=-1)
 
+envelope=lambda X:jnp.exp(-jnp.sum(jnp.square(X)))
+envelope_FN=envelope
 
+#envelope=box
+#envelope_FN=box
 
 
 class Ansatz:
@@ -62,8 +67,8 @@ class Ansatz:
 		self.scaling=1
 
 
-	def evaluate(self,X_list):	
-		return self.evaluate_(X_list,self.PARAMS)
+	def evaluate(self,X):	
+		return self.evaluate_(X,self.PARAMS)
 
 
 	def regularize(self,r):
@@ -120,10 +125,10 @@ class FermiNet(Ansatz):
 
 	def __init__(self,params,randomness_key):
 		self.params=params
-		d,d_,L,n=params['d'],params['internal_layer_width'],params['layers'],params['n']
+		d,internal_layer_width,L,n=params['d'],params['internal_layer_width'],params['layers'],params['n']
 		key,*subkeys=jax.random.split(randomness_key,3*L+3)
 
-		layer_width_list=[d]+(L-1)*[d_]+[n]
+		layer_width_list=[d]+(L-1)*[internal_layer_width]+[n]
 		self.layer_width_list=layer_width_list
 		W_list=[];V_list=[];b_list=[]
 		for l in range(L):
@@ -138,14 +143,15 @@ class FermiNet(Ansatz):
 
 	def evaluate_(self,X,PARAMS):
 		n=self.params['n']
+		multiplier=self.scaling*envelope_FN(X)
 		for l in range(self.params['layers']):
 			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
-			S=jnp.sum(X,axis=0)
-			Y=jnp.tanh(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0))
+			S=jnp.average(X,axis=-2)
+			Y=FN_activation(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=-2))
 			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
 				Y+=X
 			X=Y
-		return self.scaling*envelope(X)*jnp.linalg.det(Y)
+		return multiplier*jnp.linalg.det(Y)
 
 
 
@@ -238,7 +244,7 @@ def apply_updates(PARAMS,grads,rate):
 
 def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distribution):
 	#opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.9,transition_steps=10))
-	opt=optax.rmsprop(.1)
+	opt=optax.rmsprop(.01)
 	state=opt.init(ansatz.PARAMS)
 	n=ansatz.params['n']
 	d=ansatz.params['d']

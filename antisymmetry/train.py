@@ -114,6 +114,7 @@ def initialize(ID,randkey,args):
 
 
 	randkey1,randkey2=jax.random.split(randkey)
+	#X_distribution=lambda key,samples:jax.random.uniform(key,shape=(samples,params['n'],params['d']),minval=-1,maxval=1)
 	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 
 	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth']}

@@ -30,18 +30,15 @@ class Plots:
 
 
 
+
 ##################################################################################################################################################################
 
 	def segment(self,axes,randkey):
-#		randkey1,randkey2=jax.random.split(randkey)
-#		
-#		X1=2*jax.random.normal(randkey1,shape=(self.n,self.d))
-#		X2=2*jax.random.normal(randkey2,shape=(self.n,self.d))
 
-		length=2
-		x2=jnp.concatenate([jnp.array([length]),jnp.zeros(self.d-1)],axis=0)
+		length=10
+		x2=jnp.concatenate([jnp.array([length/2]),jnp.zeros(self.d-1)],axis=0)
 		x1=-x2
-		X_rest=jax.random.normal(randkey,shape=(self.n-1,self.d))
+		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
 		X1=jnp.concatenate([jnp.expand_dims(x1,axis=0),X_rest],axis=0)
 		X2=jnp.concatenate([jnp.expand_dims(x2,axis=0),X_rest],axis=0)
 			
@@ -51,12 +48,8 @@ class Plots:
 		flist=jax.vmap(self.ansatz.evaluate)(Xlist)
 
 
-
-
 		ylist=jnp.tanh(2*ylist)
 		flist=jnp.tanh(2*flist)
-
-
 		
 		axes[0].plot(I,ylist,label="true f",color='b')
 		axes[0].plot(I,flist,label="Ansatz",color='r')
@@ -83,15 +76,16 @@ class Plots:
 		axes[0].set_title('Ansatz')
 		axes[1].set_title('true f')
 
-		x=jnp.array([-1,-1])
+		r=5
+		x=jnp.array([-r,-r])
 		if self.d>2:
 			x=jnp.concatenate([x,jnp.zeros(self.d-2)],axis=0)
-		X_rest=jax.random.normal(randkey,shape=(self.n-1,self.d))
+		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
 		X=jnp.concatenate([jnp.expand_dims(x,axis=0),X_rest],axis=0)
 		
 		vecs=[np.zeros([self.n,self.d]),np.zeros([self.n,self.d])]
-		vecs[0][0][0]=2
-		vecs[1][0][1]=2
+		vecs[0][0][0]=2*r
+		vecs[1][0][1]=2*r
 
 		self.levelsets(axes[0],self.ansatz.evaluate,X,vecs)
 		self.levelsets(axes[1],self.truth.evaluate,X,vecs)
