@@ -59,6 +59,7 @@ class Ansatz:
 
 	def __init__(self):
 		self.velocity={key:[0*m for m in M] for key,M in self.PARAMS.items()}
+		self.scaling=1
 
 
 	def evaluate(self,X_list):	
@@ -75,11 +76,18 @@ class Ansatz:
 				self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
 				
 
-	def sum_loss(self,PARAMS,X_list,y_list):
+	def avg_loss(self,PARAMS,X_list,y_list):
 		f_list=jax.vmap(self.evaluate_,[0,None])(X_list,PARAMS) #X configurations in parallel
 		fy_list=jnp.array([f_list,y_list])
-		return jnp.sum(jax.vmap(loss,1)(fy_list))
+		return jnp.average(jax.vmap(loss,1)(fy_list))
 
+	def normalize(self,X_distribution):# ensure true function has variance 1
+		samples=250
+		key=jax.random.PRNGKey(123)
+		
+		X_list=X_distribution(key,samples)
+		y_list=jax.vmap(self.evaluate)(X_list)
+		self.scaling/=jnp.sqrt(jnp.var(y_list))
 
 
 class Antisatz(Ansatz):
@@ -90,10 +98,10 @@ class Antisatz(Ansatz):
 		d,n,p,m=params['d'],params['n'],params['p'],params['m']
 		key,*subkeys=jax.random.split(randomness_key,7)
 
-		V=jax.random.uniform(subkeys[2],shape=(p,n,d),minval=-1,maxval=1)
-		b=jax.random.uniform(subkeys[3],shape=(p,n),minval=-1,maxval=1)
-		W=jax.random.uniform(subkeys[4],shape=(m,p),minval=-1,maxval=1)
-		a=jax.random.uniform(subkeys[5],shape=(m,),minval=-1,maxval=1)
+		V=jax.random.normal(subkeys[2],shape=(p,n,d))
+		b=jax.random.normal(subkeys[3],shape=(p,n))
+		W=jax.random.normal(subkeys[4],shape=(m,p))
+		a=jax.random.normal(subkeys[5],shape=(m,))
 
 		self.PARAMS={'V':V,'b':b,'W':W,'a':a}
 		super().__init__()
@@ -105,23 +113,23 @@ class Antisatz(Ansatz):
 		square_matrices_list=activation1a(jnp.dot(V,X.T)+jnp.repeat(jnp.expand_dims(b,2),n,axis=2))
 		determinants_list=jax.vmap(jnp.linalg.det)(square_matrices_list)
 		layer2=odd_activation(jnp.dot(W,determinants_list))
-		return envelope(X)*jnp.dot(a,layer2)
+		return self.scaling*envelope(X)*jnp.dot(a,layer2)
 
 
 class FermiNet(Ansatz):
 
 	def __init__(self,params,randomness_key):
 		self.params=params
-		d,d_,L,n=params['d'],params['d_'],params['L'],params['n']
+		d,d_,L,n=params['d'],params['internal_layer_width'],params['layers'],params['n']
 		key,*subkeys=jax.random.split(randomness_key,3*L+3)
 
-		d_list=[d]+(L-1)*[d_]+[n]
-		self.d_list=d_list
+		layer_width_list=[d]+(L-1)*[d_]+[n]
+		self.layer_width_list=layer_width_list
 		W_list=[];V_list=[];b_list=[]
 		for l in range(L):
-			W=jax.random.uniform(subkeys[3*l],shape=(d_list[l+1],d_list[l]),minval=-1,maxval=1)
-			V=jax.random.uniform(subkeys[3*l+1],shape=(d_list[l+1],d_list[l]),minval=-1,maxval=1)
-			b=jax.random.uniform(subkeys[3*l+2],shape=(d_list[l+1],1),minval=-1,maxval=1)
+			W=jax.random.normal(subkeys[3*l],shape=(layer_width_list[l+1],layer_width_list[l]))
+			V=jax.random.normal(subkeys[3*l+1],shape=(layer_width_list[l+1],layer_width_list[l]))
+			b=jax.random.normal(subkeys[3*l+2],shape=(layer_width_list[l+1],1))
 			W_list.append(W); V_list.append(V); b_list.append(b)
 
 		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list}
@@ -130,14 +138,14 @@ class FermiNet(Ansatz):
 
 	def evaluate_(self,X,PARAMS):
 		n=self.params['n']
-		for l in range(self.params['L']):
+		for l in range(self.params['layers']):
 			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
 			S=jnp.sum(X,axis=0)
 			Y=jnp.tanh(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=0))
-			if(self.d_list[l]==self.d_list[l+1]):
+			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
 				Y+=X
 			X=Y
-		return envelope(X)*jnp.linalg.det(Y)
+		return self.scaling*envelope(X)*jnp.linalg.det(Y)
 
 
 
@@ -150,11 +158,11 @@ class SymAnsatz(Ansatz):
 		d,n,p,m=params['d'],params['n'],params['p'],params['m']
 		key,*subkeys=jax.random.split(randomness_key,7)
 
-		V=jax.random.uniform(subkeys[2],shape=(p,d),minval=-1,maxval=1)
-		c=jax.random.uniform(subkeys[1],shape=(p,),minval=-1,maxval=1)
-		W=jax.random.uniform(subkeys[4],shape=(m,p),minval=-1,maxval=1)
-		b=jax.random.uniform(subkeys[4],shape=(m,),minval=-1,maxval=1)
-		a=jax.random.uniform(subkeys[5],shape=(m,),minval=-1,maxval=1)
+		V=jax.random.normal(subkeys[2],shape=(p,d))
+		c=jax.random.normal(subkeys[1],shape=(p,))
+		W=jax.random.normal(subkeys[4],shape=(m,p))
+		b=jax.random.normal(subkeys[4],shape=(m,))
+		a=jax.random.normal(subkeys[5],shape=(m,))
 
 		self.PARAMS={'V':V,'c':c,'W':W,'b':b,'a':a}
 		super().__init__()
@@ -176,9 +184,9 @@ class TwoLayer:
 		d,n,m=params['d'],params['n'],params['m']
 		key,*subkeys=jax.random.split(randomness_key,4)
 
-		self.W=jax.random.uniform(subkeys[0],shape=(m,n*d),minval=-1,maxval=1)
-		self.b=jax.random.uniform(subkeys[1],shape=(m,),minval=-1,maxval=1)
-		self.a=jax.random.uniform(subkeys[2],shape=(m,),minval=-1,maxval=1)
+		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))
+		self.b=jax.random.normal(subkeys[1],shape=(m,))
+		self.a=jax.random.normal(subkeys[2],shape=(m,))
 
 	def eval_raw(self,X):
 		X_vec=jnp.ravel(X)
@@ -219,35 +227,18 @@ class GenericSymmetric(TwoLayer):
 			y+=self.eval_raw(PX)
 		return envelope(X)*y
 
-
-
-def train_on(truth,ansatz,X_list):
-	y_list=jax.vmap(truth.evaluate)(X_list)
-	loss=ansatz.update_gradients(X_list,y_list)
-	return loss
-
-def train(truth,ansatz,params,randkey):
-	X_list=jax.random.uniform(randkey,shape=(params['samples'],params['n'],params['d']),minval=-1,maxval=1)
-	return train_on(truth,ansatz,X_list)
 	
-def test_on(ansatz,X_list,y_list):
-	f_list=jax.vmap(ansatz.evaluate)(X_list)
-	return f_list,jnp.sum((y_list-f_list)**2)
 
+def apply_updates(PARAMS,grads,rate):
+	NEWPARAMS={}
+	for key,param in PARAMS.items():
+		NEWPARAMS[key]=param-rate*grads[key]
+	return NEWPARAMS
 
-
-
-def test(truth,ansatz,batchsize,randkey):	
-	n=ansatz.params['n']
-	d=ansatz.params['d']
-	randkey,subkey=jax.random.split(randkey)
-	X_list=jax.random.uniform(subkey,shape=(batchsize,n,d),minval=-1,maxval=1)
-	Y_list=jax.vmap(truth.evaluate)(X_list)
-	f_list=jax.vmap(ansatz.evaluate)(X_list)
-	return jnp.sum((f_list-Y_list)**2)/batchsize
 
 def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distribution):
-	opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.5,transition_steps=100))
+	#opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.9,transition_steps=10))
+	opt=optax.rmsprop(.1)
 	state=opt.init(ansatz.PARAMS)
 	n=ansatz.params['n']
 	d=ansatz.params['d']
@@ -257,15 +248,19 @@ def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distributio
 		randkey,subkey=jax.random.split(randkey)
 		X_list=X_distribution(subkey,batchsize)
 		Y_list=jax.vmap(truth.evaluate)(X_list)
-		loss,grads=jax.value_and_grad(ansatz.sum_loss,0)(ansatz.PARAMS,X_list,Y_list)
-		losses.append(loss/batchsize)
+
+		loss,grads=jax.value_and_grad(ansatz.avg_loss,0)(ansatz.PARAMS,X_list,Y_list)
+		losses.append(loss)
+		loss_estimate=loss if i==0 else .1*loss+.9*loss_estimate
+
 		updates,_=opt.update(grads,state,ansatz.PARAMS)
 		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
+		#ansatz.PARAMS=apply_updates(ansatz.PARAMS,grads,.005)
 		ansatz.regularize(10)
 
 		randkey,subkey=jax.random.split(randkey)
 		barlength=100;
-		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(losses[-1],1)))*'\u2588'+(barlength-round(barlength*losses[-1]))*'_'+']',end='\r')
+		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+']'+str(loss_estimate),end='\r')
 
 	return losses
 

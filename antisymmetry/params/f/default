@@ -1,8 +1,7 @@
 d 2
 n 3
-m_truth 5
-d_ 100
-L 3
-training_batch_size 1000
-test_batch_size 250
+m_truth 10
+internal_layer_width 20
+layers 4
+training_batch_size 500
 batch_count 250
