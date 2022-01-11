@@ -1,6 +1,6 @@
 d 2
 n 3
-internal_layer_width 100
-layers 2
+internal_layer_width 25
+layers 4
 training_batch_size 500
-batch_count 250
+batch_count 0
