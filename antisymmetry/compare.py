@@ -15,10 +15,12 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import itertools
 			
-		
+"""
 filename=input("type name of file to plot or press enter for most recent. ")
 if(filename==""):
 	filename="most_recent"
+"""		
+filename="most_recent"
 
 with open('data/'+filename,"rb") as file:
 	alldata=pickle.load(file)
@@ -58,8 +60,13 @@ def compare_observables(observables):
 	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
 	#np.testing.assert_allclose(observables_truth,observables_ansatz,rtol=1/100)
 
-	print('observables true function:\n'+str(observables_truth))
-	print('observables Ansatz:\n'+str(observables_ansatz))
+	#print('observables true function:\n'+str(observables_truth))
+	#print('observables Ansatz:\n'+str(observables_ansatz))
+
+	diff_matrix = jnp.abs(observables_truth-observables_ansatz)
+	rel_err_matrix = jnp.divide(diff_matrix,observables_truth)
+	rel_err = jnp.abs(jnp.mean(rel_err_matrix))
+	print(rel_err, params)
 
 
 
