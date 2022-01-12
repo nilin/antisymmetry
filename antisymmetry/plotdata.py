@@ -59,13 +59,14 @@ class Plots:
 	
 	def levelsets(self,ax,f,X,vecs,**kwargs):
 
-		f_square=lambda s,t : f( X + s*vecs[0] + t*vecs[1] )
-		f_square_vecinput=lambda t : f_square(t[0],t[1])
+		f_square_function=lambda s,t : f( X + s*vecs[0] + t*vecs[1] )
+		f_square_vecinput=lambda t : f_square_function(t[0],t[1])
 
 		S,T=jnp.meshgrid(jnp.arange(0,1,.02),jnp.arange(0,1,.02))
 		square=jnp.array([S,T])
 
 		f_square=jax.vmap(jax.vmap(f_square_vecinput,1),2)(square)
+
 		
 		ax.imshow(f_square,cmap=plt.get_cmap('PiYG'),interpolation='bilinear')
 		ax.contour(f_square,colors='k',**kwargs)

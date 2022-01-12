@@ -19,7 +19,7 @@ import optax
 
 
 apply_mask=jax.vmap(jnp.multiply,in_axes=(0,0))
-least_first=lambda x,y:jnpheaviside(y-x,jnp.zeros(x.shape))
+least_first=lambda x,y:jnp.heaviside(y-x,jnp.zeros(x.shape))
 
 def gaussian_move_function(std_dev):
 	return (lambda key,x:x+std_dev*jax.random.normal(key,x.shape))

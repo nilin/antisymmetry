@@ -125,33 +125,41 @@ class FermiNet(Ansatz):
 
 	def __init__(self,params,randomness_key):
 		self.params=params
-		d,internal_layer_width,L,n=params['d'],params['internal_layer_width'],params['layers'],params['n']
-		key,*subkeys=jax.random.split(randomness_key,3*L+3)
+		d,internal_layer_width,L,n,ndets=params['d'],params['internal_layer_width'],params['layers'],params['n'],params['ndets']
+		key,*subkeys=jax.random.split(randomness_key,3*L+10)
 
-		layer_width_list=[d]+(L-1)*[internal_layer_width]+[n]
+		layer_width_list=[d]+(L-1)*[internal_layer_width]
 		self.layer_width_list=layer_width_list
 		W_list=[];V_list=[];b_list=[]
-		for l in range(L):
-			W=jax.random.normal(subkeys[3*l],shape=(layer_width_list[l+1],layer_width_list[l]))
-			V=jax.random.normal(subkeys[3*l+1],shape=(layer_width_list[l+1],layer_width_list[l]))
-			b=jax.random.normal(subkeys[3*l+2],shape=(layer_width_list[l+1],1))
+		for l in range(1,L):
+			W=jax.random.normal(subkeys[3*l-3],shape=(layer_width_list[l],layer_width_list[l-1]))
+			V=jax.random.normal(subkeys[3*l-2],shape=(layer_width_list[l],layer_width_list[l-1]))
+			b=jax.random.normal(subkeys[3*l-1],shape=(layer_width_list[l],1))
 			W_list.append(W); V_list.append(V); b_list.append(b)
 
-		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list}
+		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,layer_width_list[-1]))
+		b_fi=jax.random.normal(subkeys[-1],shape=(ndets,n,1))
+
+		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list,'W_fi':W_fi,'b_fi':b_fi}
 		super().__init__()
 
 
 	def evaluate_(self,X,PARAMS):
 		n=self.params['n']
 		multiplier=self.scaling*envelope_FN(X)
-		for l in range(self.params['layers']):
+
+		X=X.T
+		for l in range(self.params['layers']-1):
 			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
-			S=jnp.average(X,axis=-2)
-			Y=FN_activation(jnp.dot(X,W.T)+jnp.repeat((jnp.dot(S,V.T)+b.T),n,axis=-2))
+			S=jnp.expand_dims(jnp.average(X,axis=-1),-1)
+			Y=FN_activation(jnp.dot(W,X)+jnp.repeat(jnp.dot(V,S)+b,n,axis=-1))
 			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
 				Y+=X
 			X=Y
-		return multiplier*jnp.linalg.det(Y)
+
+		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],Y,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
+
+		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
 
 
 
@@ -242,10 +250,10 @@ def apply_updates(PARAMS,grads,rate):
 	return NEWPARAMS
 
 
-def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distribution):
+def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=optax.rmsprop(.01)):
 	#opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.9,transition_steps=10))
-	opt=optax.rmsprop(.01)
-	state=opt.init(ansatz.PARAMS)
+	#opt=optax.rmsprop(learning_rate)
+	state=optimizer.init(ansatz.PARAMS)
 	n=ansatz.params['n']
 	d=ansatz.params['d']
 	
@@ -259,7 +267,7 @@ def learn(truth,ansatz,learning_rate,batchsize,batchnumber,randkey,X_distributio
 		losses.append(loss)
 		loss_estimate=loss if i==0 else .1*loss+.9*loss_estimate
 
-		updates,_=opt.update(grads,state,ansatz.PARAMS)
+		updates,_=optimizer.update(grads,state,ansatz.PARAMS)
 		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
 		#ansatz.PARAMS=apply_updates(ansatz.PARAMS,grads,.005)
 		ansatz.regularize(10)

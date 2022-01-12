@@ -9,6 +9,7 @@ import jax
 import jax.numpy as jnp
 import sys
 import os
+import optax
 
 
 
@@ -25,7 +26,7 @@ cast_type=lambda val,key:float(val) if key=='threshold' else val if key=='Ansatz
 
 
 
-def run(initialize):
+def run(initialize,optimizer=optax.rmsprop(.01)):
 
 	######## create data folders ############
 
@@ -51,15 +52,14 @@ def run(initialize):
 	Ansatztype,truth,ansatz,params,X_distribution=initialize(str(ID),randkey1,args)
 
 	losslist=[]
-	rate=.0001
 	training_batch_size=params['training_batch_size']
 	test_error=float('inf')
 	true_variance=1
 
-	losses=learning.learn(truth,ansatz,.01,training_batch_size,params['batch_count'],randkey2,X_distribution)
+	losses=learning.learn(truth,ansatz,training_batch_size,params['batch_count'],randkey2,X_distribution,optimizer)
 
 
-	print('\n\n'+'='*100+'\nDone. \n'+100*'='+'\nTo view plots, run\n>>python plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python compare.py\n'+100*'=')
+	print('\n\n'+'='*100+'\nDone. \n'+100*'='+'\nTo view plots, run\n>>python antisymmetry/plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python antisymmetry/compare.py\n'+100*'=')
 
 
 

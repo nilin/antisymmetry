@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 import sys
 import os
+import optax
 
 
 
@@ -45,4 +46,4 @@ def initialize_learn_self(ID,randkey,args):
 	return Ansatztype,truth,ansatz,params,X_distribution
 
 
-train.run(initialize_learn_self)
+train.run(initialize_learn_self,optimizer=optax.rmsprop(.001))

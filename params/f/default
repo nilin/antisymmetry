@@ -3,5 +3,6 @@ n 3
 m_truth 10
 internal_layer_width 50
 layers 3
-training_batch_size 500
-batch_count 250
+ndets 10
+training_batch_size 1000
+batch_count 1000
