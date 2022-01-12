@@ -16,7 +16,7 @@ def write_paramfile(params,model):
 	for k,v in params.items():
 		filename = filename + str(k)+str(v)
 	filepath = "params/"+model+"/"+filename
-	for line in open("params/"+model+"/"+'/default'):
+	for line in open("params/"+model+"/default"):
 		key,defaultval=line.split()
 		if key not in params:
 			params[key]=cast_type(defaultval,key)
@@ -32,13 +32,11 @@ def write_paramfile(params,model):
 optimal = {'d':2, 'n':3}
 command = ""
 
-"""
+#"""
 #antisatz parameters
-#model_list = ["a"]
-#p_list = jnp.arange(48, 52)
-#m_list = jnp.arange(48, 52)
-#p_list = [20, 50]
-#m_list = [25,50,75]
+model_list = ["a"]
+p_list = [20, 50]
+m_list = [25,50,75]
 for p_val in p_list:
 	for m_val in m_list:
 		dic = optimal.copy()
@@ -46,9 +44,9 @@ for p_val in p_list:
 		dic['m'] = m_val
 		for model in model_list:
 			param_filename = write_paramfile(dic,model)
-			command = command + "python3 train.py "+ model +" "+param_filename+"; python3 compare.py; "
+			command = command + "python3 antisymmetry/train.py "+ model +" "+param_filename+"; python3 antisymmetry/compare.py; "
+#"""
 """
-
 #ferminet parameters
 model_list = ["f"]
 l_list = jnp.arange(2,6)
@@ -57,16 +55,15 @@ d__list = jnp.arange(70,120,10)
 for l_val in l_list:
 	for d_val in d__list:
 		dic = optimal.copy()
-		dic['l'] = l_val
-		dic['d_'] = d_val
+		dic['layers'] = l_val
+		dic['internal_layer_width'] = d_val
 		for model in model_list:
 			param_filename = write_paramfile(dic,model)
-			command = command + "python3 train.py "+ model +" "+param_filename+"; python3 compare.py; "
-
+			command = command + "python3 antisymmetry/train.py "+ model +" "+param_filename+"; python3 antisymmetry/compare.py; "
+"""
 
 
 os.system(command)
 
 #TODO:
 #Write results to file 
-#pull new changes, create branch, commit to branch.

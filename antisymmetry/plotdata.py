@@ -12,6 +12,7 @@ import jax
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import itertools
+import sys
 			
 		
 class Plots:
@@ -26,22 +27,17 @@ class Plots:
 			self.n=self.params['n']
 			self.d=self.params['d']
 
-			self.antistring='' if alldata['Ansatztype']=='s' else 'anti'
 
 
 
 ##################################################################################################################################################################
 
 	def segment(self,axes,randkey):
-#		randkey1,randkey2=jax.random.split(randkey)
-#		
-#		X1=2*jax.random.normal(randkey1,shape=(self.n,self.d))
-#		X2=2*jax.random.normal(randkey2,shape=(self.n,self.d))
 
-		length=2
-		x2=jnp.concatenate([jnp.array([length]),jnp.zeros(self.d-1)],axis=0)
+		length=10
+		x2=jnp.concatenate([jnp.array([length/2]),jnp.zeros(self.d-1)],axis=0)
 		x1=-x2
-		X_rest=jax.random.normal(randkey,shape=(self.n-1,self.d))
+		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
 		X1=jnp.concatenate([jnp.expand_dims(x1,axis=0),X_rest],axis=0)
 		X2=jnp.concatenate([jnp.expand_dims(x2,axis=0),X_rest],axis=0)
 			
@@ -49,30 +45,24 @@ class Plots:
 		Xlist=jnp.array([X2*t+X1*(1-t) for t in I])
 		ylist=jax.vmap(self.truth.evaluate)(Xlist)
 		flist=jax.vmap(self.ansatz.evaluate)(Xlist)
+		ymax=jnp.sqrt(jnp.max(jnp.square(ylist)))
 
-
-
-
-		ylist=jnp.tanh(2*ylist)
-		flist=jnp.tanh(2*flist)
-
-
-		
 		axes[0].plot(I,ylist,label="true f",color='b')
 		axes[0].plot(I,flist,label="Ansatz",color='r')
-		axes[0].set_ylim(-1,1)	
+		axes[0].set_ylim(-ymax,ymax)	
 		axes[0].set_xticklabels([])
 
 	
 	def levelsets(self,ax,f,X,vecs,**kwargs):
 
-		f_square=lambda s,t : f( X + s*vecs[0] + t*vecs[1] )
-		f_square_vecinput=lambda t : f_square(t[0],t[1])
+		f_square_function=lambda s,t : f( X + s*vecs[0] + t*vecs[1] )
+		f_square_vecinput=lambda t : f_square_function(t[0],t[1])
 
 		S,T=jnp.meshgrid(jnp.arange(0,1,.02),jnp.arange(0,1,.02))
 		square=jnp.array([S,T])
 
 		f_square=jax.vmap(jax.vmap(f_square_vecinput,1),2)(square)
+
 		
 		ax.imshow(f_square,cmap=plt.get_cmap('PiYG'),interpolation='bilinear')
 		ax.contour(f_square,colors='k',**kwargs)
@@ -83,15 +73,16 @@ class Plots:
 		axes[0].set_title('Ansatz')
 		axes[1].set_title('true f')
 
-		x=jnp.array([-1,-1])
+		r=5
+		x=jnp.array([-r,-r])
 		if self.d>2:
 			x=jnp.concatenate([x,jnp.zeros(self.d-2)],axis=0)
-		X_rest=jax.random.normal(randkey,shape=(self.n-1,self.d))
+		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
 		X=jnp.concatenate([jnp.expand_dims(x,axis=0),X_rest],axis=0)
 		
 		vecs=[np.zeros([self.n,self.d]),np.zeros([self.n,self.d])]
-		vecs[0][0][0]=2
-		vecs[1][0][1]=2
+		vecs[0][0][0]=2*r
+		vecs[1][0][1]=2*r
 
 		self.levelsets(axes[0],self.ansatz.evaluate,X,vecs)
 		self.levelsets(axes[1],self.truth.evaluate,X,vecs)
@@ -132,7 +123,7 @@ class Plots:
 
 	def plotgrid(self,titlebar,plotmethod,randkey,a=1,b=2,A=3,B=3,savename="plot"):	
 
-		fig=plt.figure(titlebar+', '+self.antistring+'symmetric case, d='+str(self.d)+', n='+str(self.n))
+		fig=plt.figure(titlebar+', d='+str(self.d)+', n='+str(self.n))
 		randkey,*subkeys=jax.random.split(randkey,A*B+2)
 
 		gs=GridSpec(A,B,hspace=.3)
@@ -183,16 +174,20 @@ class Plots:
 #		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename=self.antistring+'symmetry')
 #
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('segments',self.segment,subkey,b=1,A=3,B=5,savename='segments')
+		self.plotgrid('segments',self.segment,subkey,b=1,A=2,B=3,savename='segments')
 
 		plt.show()
 	
 
 
 if __name__=='__main__':
-	filename=input("type name of file to plot or press enter for most recent. ")
-	if(filename==""):
-		filename="most_recent"
+
+	args=sys.argv[1:]
+	if len(args)==0:
+		filename='most_recent'
+	else:
+		filename=args[0]
+
 	plots=Plots("data/"+filename)
 	plots.allplots()
 	
