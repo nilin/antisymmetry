@@ -14,32 +14,29 @@ import jax
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import itertools
+import sys
 			
 		
-filename=input("type name of file to plot or press enter for most recent. ")
-if(filename==""):
-	filename="most_recent"
 
-with open('data/'+filename,"rb") as file:
-	alldata=pickle.load(file)
-	
-	truth=alldata["true_f"]
-	ansatz=alldata["Ansatz"]
-	params=alldata["params"]
+
+
+def single_particle_moments(K):
+	def momentsfunction(X):
+		x=jnp.concatenate([jnp.array([1]),X[0]],axis=0)
+		tensor=jnp.array([1])
+		for i in range(K):
+			tensor=jnp.kron(tensor,x)
+		return tensor
+	return momentsfunction
+
+
+
+
+def compare(truth,ansatz,params,observables,rtol=1/10):
 
 	n=params['n']
 	d=params['d']
-
-
-
-
-
-def compare_observables(observables):
-		
-
-	randkey0=jax.random.PRNGKey(np.random.randint(100))
-
-	key,*subkeys=jax.random.split(randkey0,10)
+	randkey=jax.random.PRNGKey(0); key,*subkeys=jax.random.split(randkey,10)
 
 	n_walkers=1000
 	n_burn=250
@@ -53,31 +50,36 @@ def compare_observables(observables):
 	walkers_truth=mcmc.Metropolis(amplitude_truth,start_positions,quantum=True)
 	walkers_ansatz=mcmc.Metropolis(amplitude_ansatz,start_positions,quantum=True)
 
-	
-	observables_truth=walkers_truth.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
-	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
-	#np.testing.assert_allclose(observables_truth,observables_ansatz,rtol=1/100)
-
+	observables_truth=walkers_truth.evaluate_observables(observables,n_burn,n_steps,subkeys[2])
 	print('observables true function:\n'+str(observables_truth))
+
+	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
 	print('observables Ansatz:\n'+str(observables_ansatz))
 
-
-
-##################################################################################################################################################################
-
-
-def single_particle_moments(K):
-	def momentsfunction(X):
-		x=jnp.concatenate([jnp.array([1]),X[0]],axis=0)
-		tensor=jnp.array([1])
-		for i in range(K):
-			tensor=jnp.kron(tensor,x)
-		return tensor
-	return momentsfunction
-
-	
+	np.testing.assert_allclose(observables_truth,observables_ansatz,rtol=rtol)
 
 
 
-compare_observables(single_particle_moments(3))
-	
+
+
+
+if __name__=='__main__':
+
+	observables=single_particle_moments(3)
+		
+	args=sys.argv[1:]
+	if len(args)==0:
+		filename='most_recent'
+	else:
+		filename=args[0]
+
+	with open('data/'+filename,"rb") as file:
+		data=pickle.load(file)
+		
+		truth=data["true_f"]
+		ansatz=data["Ansatz"]
+		params=data["params"]
+
+	compare(truth,ansatz,params,observables)
+
+

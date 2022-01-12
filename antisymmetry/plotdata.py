@@ -12,6 +12,7 @@ import jax
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import itertools
+import sys
 			
 		
 class Plots:
@@ -44,14 +45,11 @@ class Plots:
 		Xlist=jnp.array([X2*t+X1*(1-t) for t in I])
 		ylist=jax.vmap(self.truth.evaluate)(Xlist)
 		flist=jax.vmap(self.ansatz.evaluate)(Xlist)
+		ymax=jnp.sqrt(jnp.max(jnp.square(ylist)))
 
-
-		ylist=jnp.tanh(2*ylist)
-		flist=jnp.tanh(2*flist)
-		
 		axes[0].plot(I,ylist,label="true f",color='b')
 		axes[0].plot(I,flist,label="Ansatz",color='r')
-		axes[0].set_ylim(-1,1)	
+		axes[0].set_ylim(-ymax,ymax)	
 		axes[0].set_xticklabels([])
 
 	
@@ -176,16 +174,20 @@ class Plots:
 #		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename=self.antistring+'symmetry')
 #
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('segments',self.segment,subkey,b=1,A=3,B=5,savename='segments')
+		self.plotgrid('segments',self.segment,subkey,b=1,A=2,B=3,savename='segments')
 
 		plt.show()
 	
 
 
 if __name__=='__main__':
-	filename=input("type name of file to plot or press enter for most recent. ")
-	if(filename==""):
-		filename="most_recent"
+
+	args=sys.argv[1:]
+	if len(args)==0:
+		filename='most_recent'
+	else:
+		filename=args[0]
+
 	plots=Plots("data/"+filename)
 	plots.allplots()
 	

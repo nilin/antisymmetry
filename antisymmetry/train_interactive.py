@@ -25,18 +25,17 @@ def input_remaining_params(params,paramsfolder):
 	for line in open(paramsfolder+'/default'):
 		key,defaultval=line.split()
 		if key not in params:
-			if key in train.descriptions:
-				desc=train.descriptions[key]
-			else:
-				desc=key
+			desc=key
 			i=input('\nInput '+desc+' '*(30-len(desc))+'(or press ENTER for default value).      '+key+'=')
 			if i=='':
 				params[key]=train.cast_type(defaultval,key)
 			else:
 				params[key]=train.cast_type(i,key)
 
-def initialize_interactive(ID,randkey,args):
+def initialize_interactive(randkey):
 
+	
+	args=sys.argv[1:]
 	if(len(args)==0 or args[0] not in {'a','f','s'}):
 		print('='*100+'\n\nMissing Ansatz type argument. Please run as\n\n>>python antisymmetry/train_interactive.py a default\n\nfor Antisatz or\n\n>>python antisymmetry/train_interactive.py f default\n\nfor FermiNet or\n\n>>python antisymmetry/train_interactive.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+'='*100)
 		quit()
@@ -52,7 +51,7 @@ def initialize_interactive(ID,randkey,args):
 		firstinput=input('\n'+\
 		'='*100+'\nPress ENTER to generate '+antistring+'symmetric function from default parameters.\n'+'='*100+'\n'+\
 		'or\nType name of parameter file. Type \'m\' to input parameters manually.\n'+\
-		'To import true '+antistring+'symmetric function from saved data, type \'i\'.\n'+'='*100)
+		'To import true '+antistring+'symmetric function from saved data, type \'i\'.\n'+'='*100+'\n')
 
 	params={}
 	loaded={}
@@ -87,8 +86,17 @@ def initialize_interactive(ID,randkey,args):
 	if 'Ansatz' not in loaded:
 		ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
 
-	train.print_params(params,paramsfolder+'/default',train.descriptions,Ansatztype)
+	train.print_params(truth,ansatz,params)
 	return truth,ansatz,params,X_distribution
 
 
-train.run(initialize_interactive)
+
+
+randkey=jax.random.PRNGKey(0)
+randkey1,randkey2=jax.random.split(randkey)
+
+truth,ansatz,params,X_distribution=initialize_interactive(randkey1)
+learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
+
+thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
+train.savedata(thedata)

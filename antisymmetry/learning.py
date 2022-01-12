@@ -121,6 +121,52 @@ class Antisatz(Ansatz):
 		return self.scaling*envelope(X)*jnp.dot(a,layer2)
 
 
+#class FermiNet(Ansatz):
+#
+#	def __init__(self,params,randomness_key):
+#		self.params=params
+#		d,internal_layer_width,L,n,ndets=params['d'],params['internal_layer_width'],params['layers'],params['n'],params['ndets']
+#		key,*subkeys=jax.random.split(randomness_key,3*L+10)
+#
+#		layer_width_list=[d]+(L-1)*[internal_layer_width]
+#		self.layer_width_list=layer_width_list
+#		W_list=[];V_list=[];b_list=[]
+#		for l in range(1,L):
+#			W=jax.random.normal(subkeys[3*l-3],shape=(layer_width_list[l],layer_width_list[l-1]))
+#			V=jax.random.normal(subkeys[3*l-2],shape=(layer_width_list[l],layer_width_list[l-1]))
+#			b=jax.random.normal(subkeys[3*l-1],shape=(layer_width_list[l],1))
+#			W_list.append(W); V_list.append(V); b_list.append(b)
+#
+#		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,sum(layer_width_list)))
+#		b_fi=jax.random.normal(subkeys[-1],shape=(ndets,n,1))
+#
+#		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list,'W_fi':W_fi,'b_fi':b_fi}
+#		super().__init__()
+#
+#
+#	def evaluate_(self,X,PARAMS):
+#		n=self.params['n']
+#		multiplier=self.scaling*envelope_FN(X)
+#
+#		X=X.T
+#		skips=[X]
+#		for l in range(self.params['layers']-1):
+#			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
+#			S=jnp.expand_dims(jnp.average(X,axis=-1),-1)
+#			Y=FN_activation(jnp.dot(W,X)+jnp.repeat(jnp.dot(V,S)+b,n,axis=-1))
+#			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
+#				Y+=X
+#			X=Y
+#			skips.append(Y)
+#
+#		history=jnp.concatenate(skips,axis=-2)
+#
+#		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
+#
+#		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
+
+
+
 class FermiNet(Ansatz):
 
 	def __init__(self,params,randomness_key):
@@ -201,19 +247,27 @@ class TwoLayer:
 		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))
 		self.b=jax.random.normal(subkeys[1],shape=(m,))
 		self.a=jax.random.normal(subkeys[2],shape=(m,))
+		self.scale=1
 
 	def eval_raw(self,X):
 		X_vec=jnp.ravel(X)
 		layer1=activations_truth[self.activationchoice](jnp.dot(self.W,X_vec)+self.b)
 		return jnp.dot(self.a,layer1)
+
+	def evaluate(self,X):
+		return self.scale*envelope(X)*jnp.tanh(self.eval_non_regularized(X))
 		
 	def normalize(self,X_distribution):# ensure true function has variance 1
 		samples=250
 		key=jax.random.PRNGKey(123)
 		
 		X_list=X_distribution(key,samples)
-		y_list=jax.vmap(self.evaluate)(X_list)
+		y_list=jax.vmap(self.eval_non_regularized)(X_list)
 		self.a/=jnp.sqrt(jnp.var(y_list))
+
+		y_list=jax.vmap(self.evaluate)(X_list)
+		self.scale/=jnp.sqrt(jnp.var(y_list))
+
 	
 	
 class GenericAntiSymmetric(TwoLayer):
@@ -221,25 +275,25 @@ class GenericAntiSymmetric(TwoLayer):
 		self.activationchoice=1
 		super().__init__(params,randomness_key)
 
-	def evaluate(self,X):
+	def eval_non_regularized(self,X):
 		y=0
 		for P in itertools.permutations(jnp.identity(len(X))):
 			sign=jnp.linalg.det(P)
 			PX=jnp.matmul(jnp.array(P),X)	
 			y+=sign*self.eval_raw(PX)
-		return envelope(X)*y
+		return y
 
 class GenericSymmetric(TwoLayer):
 	def __init__(self,params,randomness_key):
 		self.activationchoice=0
 		super().__init__(params,randomness_key)
 
-	def evaluate(self,X):
+	def eval_non_regularized(self,X):
 		y=0
 		for P in itertools.permutations(jnp.identity(len(X))):
 			PX=jnp.matmul(jnp.array(P),X)	
 			y+=self.eval_raw(PX)
-		return envelope(X)*y
+		return y
 
 	
 
