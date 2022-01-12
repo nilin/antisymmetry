@@ -18,32 +18,27 @@ import optax
 
 
 
+def test_FermiNet():
 
+	params=train.get_params('f/default')
+	randkey=jax.random.PRNGKey(0); randkey1,randkey2=jax.random.split(randkey)
 
-def initialize_learn_self(ID,randkey,args):
-
-	paramsfile='params/test_FermiNet_on_self'
-	Ansatztype='f'
-
-	params={}
-	for line in open(paramsfile):
-		key,val=line.split()
-		params[key]=train.cast_type(val,key)
-
-
-	randkey1,randkey2=jax.random.split(randkey)
 	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 
-			
-	truth=learning.FermiNet(params,randkey1)
+	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth']}
+	truth=learning.GenericAntiSymmetric(truth_params,randkey1)
 	truth.normalize(X_distribution)
 
 	ansatz=learning.FermiNet(params,randkey2)
 	ansatz.normalize(X_distribution)
 
-
-	train.print_params(params,paramsfile,train.descriptions,Ansatztype)
-	return Ansatztype,truth,ansatz,params,X_distribution
+	train.print_params(truth,ansatz,params)
 
 
-train.run(initialize_learn_self,optimizer=optax.rmsprop(.001))
+	learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
+
+	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
+	train.savedata(thedata)
+
+
+test_FermiNet()

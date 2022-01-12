@@ -3,5 +3,5 @@ n 3
 m_truth 10
 p 100
 m 20
-training_batch_size 500
-batch_count 500
+training_batch_size 1000
+batch_count 100

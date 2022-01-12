@@ -274,7 +274,8 @@ def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=op
 
 		randkey,subkey=jax.random.split(randkey)
 		barlength=100;
-		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+']'+str(loss_estimate),end='\r')
+		roundloss=round(loss_estimate*1000)/1000
+		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+'] '+str(roundloss),end='\r')
 
 	return losses
 

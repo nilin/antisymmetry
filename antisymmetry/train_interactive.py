@@ -88,7 +88,7 @@ def initialize_interactive(ID,randkey,args):
 		ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
 
 	train.print_params(params,paramsfolder+'/default',train.descriptions,Ansatztype)
-	return Ansatztype,truth,ansatz,params,X_distribution
+	return truth,ansatz,params,X_distribution
 
 
 train.run(initialize_interactive)

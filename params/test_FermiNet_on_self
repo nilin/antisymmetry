@@ -4,4 +4,4 @@ internal_layer_width 25
 layers 3
 ndets 10
 training_batch_size 1000
-batch_count 1000
+batch_count 250

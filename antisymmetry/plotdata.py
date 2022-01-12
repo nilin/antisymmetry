@@ -26,8 +26,6 @@ class Plots:
 			self.n=self.params['n']
 			self.d=self.params['d']
 
-			self.antistring='' if alldata['Ansatztype']=='s' else 'anti'
-
 
 
 
@@ -127,7 +125,7 @@ class Plots:
 
 	def plotgrid(self,titlebar,plotmethod,randkey,a=1,b=2,A=3,B=3,savename="plot"):	
 
-		fig=plt.figure(titlebar+', '+self.antistring+'symmetric case, d='+str(self.d)+', n='+str(self.n))
+		fig=plt.figure(titlebar+', d='+str(self.d)+', n='+str(self.n))
 		randkey,*subkeys=jax.random.split(randkey,A*B+2)
 
 		gs=GridSpec(A,B,hspace=.3)
