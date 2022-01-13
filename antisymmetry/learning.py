@@ -121,52 +121,6 @@ class Antisatz(Ansatz):
 		return self.scaling*envelope(X)*jnp.dot(a,layer2)
 
 
-#class FermiNet(Ansatz):
-#
-#	def __init__(self,params,randomness_key):
-#		self.params=params
-#		d,internal_layer_width,L,n,ndets=params['d'],params['internal_layer_width'],params['layers'],params['n'],params['ndets']
-#		key,*subkeys=jax.random.split(randomness_key,3*L+10)
-#
-#		layer_width_list=[d]+(L-1)*[internal_layer_width]
-#		self.layer_width_list=layer_width_list
-#		W_list=[];V_list=[];b_list=[]
-#		for l in range(1,L):
-#			W=jax.random.normal(subkeys[3*l-3],shape=(layer_width_list[l],layer_width_list[l-1]))
-#			V=jax.random.normal(subkeys[3*l-2],shape=(layer_width_list[l],layer_width_list[l-1]))
-#			b=jax.random.normal(subkeys[3*l-1],shape=(layer_width_list[l],1))
-#			W_list.append(W); V_list.append(V); b_list.append(b)
-#
-#		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,sum(layer_width_list)))
-#		b_fi=jax.random.normal(subkeys[-1],shape=(ndets,n,1))
-#
-#		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list,'W_fi':W_fi,'b_fi':b_fi}
-#		super().__init__()
-#
-#
-#	def evaluate_(self,X,PARAMS):
-#		n=self.params['n']
-#		multiplier=self.scaling*envelope_FN(X)
-#
-#		X=X.T
-#		skips=[X]
-#		for l in range(self.params['layers']-1):
-#			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
-#			S=jnp.expand_dims(jnp.average(X,axis=-1),-1)
-#			Y=FN_activation(jnp.dot(W,X)+jnp.repeat(jnp.dot(V,S)+b,n,axis=-1))
-#			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
-#				Y+=X
-#			X=Y
-#			skips.append(Y)
-#
-#		history=jnp.concatenate(skips,axis=-2)
-#
-#		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
-#
-#		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
-
-
-
 class FermiNet(Ansatz):
 
 	def __init__(self,params,randomness_key):
@@ -183,7 +137,7 @@ class FermiNet(Ansatz):
 			b=jax.random.normal(subkeys[3*l-1],shape=(layer_width_list[l],1))
 			W_list.append(W); V_list.append(V); b_list.append(b)
 
-		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,layer_width_list[-1]))
+		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,sum(layer_width_list)))
 		b_fi=jax.random.normal(subkeys[-1],shape=(ndets,n,1))
 
 		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list,'W_fi':W_fi,'b_fi':b_fi}
@@ -195,6 +149,7 @@ class FermiNet(Ansatz):
 		multiplier=self.scaling*envelope_FN(X)
 
 		X=X.T
+		skips=[X]
 		for l in range(self.params['layers']-1):
 			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
 			S=jnp.expand_dims(jnp.average(X,axis=-1),-1)
@@ -202,10 +157,55 @@ class FermiNet(Ansatz):
 			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
 				Y+=X
 			X=Y
+			skips.append(Y)
 
-		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],Y,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
+		history=jnp.concatenate(skips,axis=-2)
+
+		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
 
 		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
+
+
+
+#class FermiNet(Ansatz):
+#
+#	def __init__(self,params,randomness_key):
+#		self.params=params
+#		d,internal_layer_width,L,n,ndets=params['d'],params['internal_layer_width'],params['layers'],params['n'],params['ndets']
+#		key,*subkeys=jax.random.split(randomness_key,3*L+10)
+#
+#		layer_width_list=[d]+(L-1)*[internal_layer_width]
+#		self.layer_width_list=layer_width_list
+#		W_list=[];V_list=[];b_list=[]
+#		for l in range(1,L):
+#			W=jax.random.normal(subkeys[3*l-3],shape=(layer_width_list[l],layer_width_list[l-1]))
+#			V=jax.random.normal(subkeys[3*l-2],shape=(layer_width_list[l],layer_width_list[l-1]))
+#			b=jax.random.normal(subkeys[3*l-1],shape=(layer_width_list[l],1))
+#			W_list.append(W); V_list.append(V); b_list.append(b)
+#
+#		W_fi=jax.random.normal(subkeys[-2],shape=(ndets,n,layer_width_list[-1]))
+#		b_fi=jax.random.normal(subkeys[-1],shape=(ndets,n,1))
+#
+#		self.PARAMS={'W_list':W_list,'V_list':V_list,'b_list':b_list,'W_fi':W_fi,'b_fi':b_fi}
+#		super().__init__()
+#
+#
+#	def evaluate_(self,X,PARAMS):
+#		n=self.params['n']
+#		multiplier=self.scaling*envelope_FN(X)
+#
+#		X=X.T
+#		for l in range(self.params['layers']-1):
+#			W,V,b=(PARAMS[key][l] for key in ['W_list','V_list','b_list'])
+#			S=jnp.expand_dims(jnp.average(X,axis=-1),-1)
+#			Y=FN_activation(jnp.dot(W,X)+jnp.repeat(jnp.dot(V,S)+b,n,axis=-1))
+#			if(self.layer_width_list[l]==self.layer_width_list[l+1]):
+#				Y+=X
+#			X=Y
+#
+#		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],Y,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
+#
+#		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
 
 
 
