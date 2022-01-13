@@ -52,5 +52,10 @@ def test_FermiNet():
 
 truth,ansatz,params=test_FermiNet()
 
+plots=plotdata.Plots("data/most_recent")
+plots.allplots()
+plt.show()
+
+
 observables=compare.single_particle_moments(2)
 compare.compare(truth,ansatz,params,observables,.2)

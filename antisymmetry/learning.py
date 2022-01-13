@@ -120,6 +120,9 @@ class Antisatz(Ansatz):
 		layer2=odd_activation(jnp.dot(W,determinants_list))
 		return self.scaling*envelope(X)*jnp.dot(a,layer2)
 
+	def typestr(self):
+		return 'Antisatz'
+
 
 class FermiNet(Ansatz):
 
@@ -164,6 +167,9 @@ class FermiNet(Ansatz):
 		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
 
 		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
+
+	def typestr(self):
+		return 'FermiNet'
 
 
 
@@ -267,6 +273,9 @@ class TwoLayer:
 
 		y_list=jax.vmap(self.evaluate)(X_list)
 		self.scale/=jnp.sqrt(jnp.var(y_list))
+
+	def typestr(self):
+		return 'generic'
 
 	
 	
