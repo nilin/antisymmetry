@@ -19,8 +19,8 @@ import optax
 def test_FermiNet_on_self():
 
 	params_t={'n':3,'d':2,'internal_layer_width':5,'layers':2,'ndets':5}
-	params_a={'n':3,'d':2,'internal_layer_width':50,'layers':3,'ndets':20}
-	params={'n':3,'d':2,'t':params_t,'a':params_a,'training_batch_size':1000,'batch_count':500}
+	params_a={'n':3,'d':2,'internal_layer_width':20,'layers':3,'ndets':20}
+	params={'n':3,'d':2,'true':params_t,'Ansatz':params_a,'training_batch_size':1000,'batch_count':500}
 
 	randkey=jax.random.PRNGKey(0); randkey1,randkey2=jax.random.split(randkey)
 
@@ -49,7 +49,7 @@ def test_Antisatz_on_self():
 
 	params_t={'n':3,'d':2,'m':5,'p':5}
 	params_a={'n':3,'d':2,'m':20,'p':20}
-	params={'n':3,'d':2,'t':params_t,'a':params_a,'training_batch_size':1000,'batch_count':200}
+	params={'n':3,'d':2,'true':params_t,'Ansatz':params_a,'training_batch_size':1000,'batch_count':200}
 	randkey=jax.random.PRNGKey(0); randkey1,randkey2=jax.random.split(randkey)
 
 	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
@@ -79,3 +79,5 @@ a_plots=test_Antisatz_on_self()
 
 f_plots.allplots()
 a_plots.allplots()
+
+plt.show()

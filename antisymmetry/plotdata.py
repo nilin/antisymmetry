@@ -176,7 +176,6 @@ class Plots:
 		randkey,subkey=jax.random.split(randkey)
 		self.plotgrid('segments',self.segment,subkey,b=1,A=2,B=3,savename='segments')
 
-		plt.show()
 	
 
 
@@ -192,4 +191,5 @@ if __name__=='__main__':
 	plots.allplots()
 	
 
+	plt.show()
 
