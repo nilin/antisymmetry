@@ -123,7 +123,7 @@ class Plots:
 
 	def plotgrid(self,titlebar,plotmethod,randkey,a=1,b=2,A=3,B=3,savename="plot"):	
 
-		fig=plt.figure(titlebar+', d='+str(self.d)+', n='+str(self.n))
+		fig=plt.figure(titlebar+str(type(self.ansatz))+', d='+str(self.d)+', n='+str(self.n))
 		randkey,*subkeys=jax.random.split(randkey,A*B+2)
 
 		gs=GridSpec(A,B,hspace=.3)
@@ -165,7 +165,7 @@ class Plots:
 		randkey=jax.random.PRNGKey(1)
 
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('nodal surface',self.nodalsurface,subkey,A=1,B=1,savename='nodalsurface')
+		self.plotgrid('nodal surface ',self.nodalsurface,subkey,A=1,B=1,savename='nodalsurface')
 
 #		randkey,subkey=jax.random.split(randkey)
 #		self.plotgrid('4-point level sets',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
@@ -174,7 +174,7 @@ class Plots:
 #		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename=self.antistring+'symmetry')
 #
 		randkey,subkey=jax.random.split(randkey)
-		self.plotgrid('segments',self.segment,subkey,b=1,A=2,B=3,savename='segments')
+		self.plotgrid('segments ',self.segment,subkey,b=1,A=2,B=3,savename='segments')
 
 	
 
