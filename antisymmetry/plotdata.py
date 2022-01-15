@@ -34,7 +34,7 @@ class Plots:
 
 	def segment(self,axes,randkey):
 
-		length=10
+		length=6
 		x2=jnp.concatenate([jnp.array([length/2]),jnp.zeros(self.d-1)],axis=0)
 		x1=-x2
 		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
@@ -190,6 +190,5 @@ if __name__=='__main__':
 	plots=Plots("data/"+filename)
 	plots.allplots()
 	
-
 	plt.show()
 

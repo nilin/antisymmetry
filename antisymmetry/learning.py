@@ -313,7 +313,7 @@ def apply_updates(PARAMS,grads,rate):
 	return NEWPARAMS
 
 
-def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=optax.rmsprop(.01)):
+def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer=optax.rmsprop(.01),smoothingperiod=25):
 	#opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.9,transition_steps=10))
 	#opt=optax.rmsprop(learning_rate)
 	state=optimizer.init(ansatz.PARAMS)
@@ -321,14 +321,20 @@ def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=op
 	d=ansatz.params['d']
 	
 	losses=[]
-	for i in range(batchnumber):
+	smoothedlosses=[]
+
+	r=1.0/float(smoothingperiod)
+
+	for i in range(maxbatchnumber):
+
 		randkey,subkey=jax.random.split(randkey)
 		X_list=X_distribution(subkey,batchsize)
 		Y_list=jax.vmap(truth.evaluate)(X_list)
 
 		loss,grads=jax.value_and_grad(ansatz.avg_loss,0)(ansatz.PARAMS,X_list,Y_list)
+		loss_estimate=loss if i==0 else r*loss+(1-r)*loss_estimate
 		losses.append(loss)
-		loss_estimate=loss if i==0 else .1*loss+.9*loss_estimate
+		smoothedlosses.append(loss_estimate)
 
 		updates,_=optimizer.update(grads,state,ansatz.PARAMS)
 		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
@@ -339,6 +345,10 @@ def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=op
 		barlength=100;
 		roundloss=round(loss_estimate*1000)/1000
 		print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+'] '+str(roundloss),end='\r')
+
+		if i>smoothingperiod and smoothedlosses[-1]>1.05*smoothedlosses[-smoothingperiod]:
+			print('\nConverged after '+str(i)+' batches')
+			break
 
 	return losses
 

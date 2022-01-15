@@ -15,13 +15,15 @@ import optax
 
 
 
-params_f_small={'n':3,'d':2,'internal_layer_width':5,'layers':2,'ndets':5}
-params_f_large={'n':3,'d':2,'internal_layer_width':20,'layers':3,'ndets':20}
+params_f_small={'n':3,'d':2,'internal_layer_width':10,'layers':3,'ndets':1}
+params_f_large={'n':3,'d':2,'internal_layer_width':20,'layers':3,'ndets':10}
+#params_f_small=params_f_large
 
-params_a_small={'n':3,'d':2,'m':5,'p':5}
+params_a_small={'n':3,'d':2,'m':10,'p':10}
 params_a_large={'n':3,'d':2,'m':25,'p':25}
+#params_a_small=params_a_large
 
-params={'n':3,'d':2,'training_batch_size':1000,'batch_count':200}
+params={'n':3,'d':2,'training_batch_size':1000,'batch_count':500}
 
 X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 
