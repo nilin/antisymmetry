@@ -71,20 +71,13 @@ class Ansatz:
 		return self.evaluate_(X,self.PARAMS)
 
 
-	def regularize(self,r):
-		for key,M in self.PARAMS.items():
-
-			if isinstance(self.PARAMS[key],list):
-				for i in range(len(self.PARAMS[key])):
-					self.PARAMS[key][i]=jnp.tanh(self.PARAMS[key][i]/r)*r 
-			else:
-				self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
-				
-
 	def avg_loss(self,PARAMS,X_list,y_list):
 		f_list=jax.vmap(self.evaluate_,[0,None])(X_list,PARAMS) #X configurations in parallel
 		fy_list=jnp.array([f_list,y_list])
 		return jnp.average(jax.vmap(loss,1)(fy_list))
+
+	def regularize(self,r):
+		pass
 
 	def normalize(self,X_distribution):# ensure true function has variance 1
 		samples=250
@@ -167,6 +160,17 @@ class FermiNet(Ansatz):
 		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
 
 		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
+
+
+
+	def regularize(self,r):
+		for key,M in self.PARAMS.items():
+			if isinstance(self.PARAMS[key],list):
+				for i in range(len(self.PARAMS[key])):
+					self.PARAMS[key][i]=r*self.PARAMS[key][i]
+			else:
+				self.PARAMS[key]=r*self.PARAMS[key]
+
 
 	def typestr(self):
 		return 'FermiNet'
@@ -331,6 +335,8 @@ def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer
 		X_list=X_distribution(subkey,batchsize)
 		Y_list=jax.vmap(truth.evaluate)(X_list)
 
+		ansatz.regularize(.999)	
+
 		loss,grads=jax.value_and_grad(ansatz.avg_loss,0)(ansatz.PARAMS,X_list,Y_list)
 		loss_estimate=loss if i==0 else r*loss+(1-r)*loss_estimate
 		losses.append(loss)
@@ -339,7 +345,6 @@ def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer
 		updates,_=optimizer.update(grads,state,ansatz.PARAMS)
 		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
 		#ansatz.PARAMS=apply_updates(ansatz.PARAMS,grads,.005)
-		ansatz.regularize(10)
 
 		randkey,subkey=jax.random.split(randkey)
 		barlength=100;
