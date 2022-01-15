@@ -41,7 +41,7 @@ def test_FermiNet():
 	randkey1,randkey2=jax.random.split(randkey)
 
 	truth,ansatz,params,X_distribution=initialize(randkey1)
-	learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
+	learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution,smoothingperiod=50)
 
 	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
 	train.savedata(thedata)
@@ -51,6 +51,11 @@ def test_FermiNet():
 
 
 truth,ansatz,params=test_FermiNet()
+
+plots=plotdata.Plots("data/most_recent")
+plots.allplots()
+plt.show()
+
 
 observables=compare.single_particle_moments(2)
 compare.compare(truth,ansatz,params,observables,.2)

@@ -71,20 +71,13 @@ class Ansatz:
 		return self.evaluate_(X,self.PARAMS)
 
 
-	def regularize(self,r):
-		for key,M in self.PARAMS.items():
-
-			if isinstance(self.PARAMS[key],list):
-				for i in range(len(self.PARAMS[key])):
-					self.PARAMS[key][i]=jnp.tanh(self.PARAMS[key][i]/r)*r 
-			else:
-				self.PARAMS[key]=jnp.tanh(self.PARAMS[key]/r)*r 
-				
-
 	def avg_loss(self,PARAMS,X_list,y_list):
 		f_list=jax.vmap(self.evaluate_,[0,None])(X_list,PARAMS) #X configurations in parallel
 		fy_list=jnp.array([f_list,y_list])
 		return jnp.average(jax.vmap(loss,1)(fy_list))
+
+	def regularize(self,r):
+		pass
 
 	def normalize(self,X_distribution):# ensure true function has variance 1
 		samples=250
@@ -119,6 +112,9 @@ class Antisatz(Ansatz):
 		determinants_list=jax.vmap(jnp.linalg.det)(square_matrices_list)
 		layer2=odd_activation(jnp.dot(W,determinants_list))
 		return self.scaling*envelope(X)*jnp.dot(a,layer2)
+
+	def typestr(self):
+		return 'Antisatz'
 
 
 class FermiNet(Ansatz):
@@ -164,6 +160,20 @@ class FermiNet(Ansatz):
 		Phi=FN_activation(jnp.tensordot(self.PARAMS['W_fi'],history,axes=1)+jnp.repeat(self.PARAMS['b_fi'],n,axis=-1))
 
 		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
+
+
+
+	def regularize(self,r):
+		for key,M in self.PARAMS.items():
+			if isinstance(self.PARAMS[key],list):
+				for i in range(len(self.PARAMS[key])):
+					self.PARAMS[key][i]=r*self.PARAMS[key][i]
+			else:
+				self.PARAMS[key]=r*self.PARAMS[key]
+
+
+	def typestr(self):
+		return 'FermiNet'
 
 
 
@@ -268,6 +278,9 @@ class TwoLayer:
 		y_list=jax.vmap(self.evaluate)(X_list)
 		self.scale/=jnp.sqrt(jnp.var(y_list))
 
+	def typestr(self):
+		return 'generic'
+
 	
 	
 class GenericAntiSymmetric(TwoLayer):
@@ -304,7 +317,7 @@ def apply_updates(PARAMS,grads,rate):
 	return NEWPARAMS
 
 
-def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=optax.rmsprop(.01)):
+def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer=optax.rmsprop(.01),smoothingperiod=25):
 	#opt=optax.adamw(optax.exponential_decay(init_value=learning_rate,decay_rate=.9,transition_steps=10))
 	#opt=optax.rmsprop(learning_rate)
 	state=optimizer.init(ansatz.PARAMS)
@@ -312,25 +325,36 @@ def learn(truth,ansatz,batchsize,batchnumber,randkey,X_distribution,optimizer=op
 	d=ansatz.params['d']
 	
 	losses=[]
-	for i in range(batchnumber):
+	smoothedlosses=[]
+
+	r=1.0/float(smoothingperiod)
+
+	for i in range(maxbatchnumber):
+
 		randkey,subkey=jax.random.split(randkey)
 		X_list=X_distribution(subkey,batchsize)
 		Y_list=jax.vmap(truth.evaluate)(X_list)
 
+		ansatz.regularize(.999)	
+
 		loss,grads=jax.value_and_grad(ansatz.avg_loss,0)(ansatz.PARAMS,X_list,Y_list)
+		loss_estimate=loss if i==0 else r*loss+(1-r)*loss_estimate
 		losses.append(loss)
-		loss_estimate=loss if i==0 else .1*loss+.9*loss_estimate
+		smoothedlosses.append(loss_estimate)
 
 		updates,_=optimizer.update(grads,state,ansatz.PARAMS)
 		ansatz.PARAMS=optax.apply_updates(ansatz.PARAMS,updates)
 		#ansatz.PARAMS=apply_updates(ansatz.PARAMS,grads,.005)
-		ansatz.regularize(10)
 
 		randkey,subkey=jax.random.split(randkey)
 		barlength=100;
 
 		#roundloss=round(loss_estimate*1000)/1000
 		#print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+'] '+str(roundloss),end='\r')
+
+		if i>smoothingperiod and smoothedlosses[-1]>1.05*smoothedlosses[-smoothingperiod]:
+			print('\nConverged after '+str(i)+' batches')
+			break
 
 	return losses
 

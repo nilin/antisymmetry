@@ -19,7 +19,7 @@ import optax
 
 cast_type=lambda val,key:float(val) if key=='threshold' else val if key=='Ansatz' else int(val)
 
-bar=150*'='
+bar='\n'
 
 def prepdirs():
 	foldernames=['theplots','data','params/a','params/s','params/f']
@@ -44,7 +44,7 @@ def savedata(thedata):
 	with open('data/most_recent','wb') as file:
 		pickle.dump(thedata,file)
 	
-	print('\n\n'+bar+'\nData saved as '+filename+'\n'+bar+'\nTo view plots, run\n>>python antisymmetry/plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python antisymmetry/compare.py\n'+bar)
+	print(bar+'Data saved as '+filename+bar)
 
 def get_params(paramsfile):
 	params={}
@@ -55,13 +55,12 @@ def get_params(paramsfile):
 
 def print_params(truth,ansatz,params):
 	
-	print('\n'+bar+'\nTrue function type: '+str(type(truth))+'\nAnsatz type: '+str(type(ansatz))+'\n'+bar)
-	print('\nParameters:')
-	for key,item in params.items():
-		print(str(key)+'='+str(item))
-	print('\n')
-
-
+	print(bar+'True function type: '+truth.typestr()+'\nAnsatz type: '+ansatz.typestr()+bar)
+	if(len(params)!=0):
+		print('\nParameters:')
+		for key,item in params.items():
+			print(str(key)+'='+str(item))
+		print('\n')
 
 
 
@@ -69,7 +68,7 @@ def initialize(randkey):
 
 	args=sys.argv[1:]
 	if(len(args)==0 or args[0] not in {'a','f','s'}):
-		print(bar+'\n\nMissing Ansatz type argument. Please run as\n\n>>python antisymmetry.train.py a default\n\nfor Antisatz or\n\n>>python antisymmetry.train.py f default\n\nfor FermiNet or\n\n>>python antisymmetry.train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.\n\n'+bar)
+		print(bar+'Missing Ansatz type argument. Please run as\n\n>>python antisymmetry.train.py a default\n\nfor Antisatz or\n\n>>python antisymmetry.train.py f default\n\nfor FermiNet or\n\n>>python antisymmetry.train.py s default\n\nfor symmetric. For custom parameters omit \'default\' for prompt or replace by name of parameter file.'+bar)
 		quit()
 		
 	Ansatztype=args[0]
@@ -106,3 +105,4 @@ if __name__=='__main__':
 
 	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
 	savedata(thedata)
+	print('\nTo view plots, run\n>>python antisymmetry/plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python antisymmetry/compare.py'+bar)

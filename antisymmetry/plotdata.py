@@ -34,7 +34,7 @@ class Plots:
 
 	def segment(self,axes,randkey):
 
-		length=10
+		length=6
 		x2=jnp.concatenate([jnp.array([length/2]),jnp.zeros(self.d-1)],axis=0)
 		x1=-x2
 		X_rest=jax.random.uniform(randkey,shape=(self.n-1,self.d),minval=-1,maxval=1)
@@ -123,7 +123,7 @@ class Plots:
 
 	def plotgrid(self,titlebar,plotmethod,randkey,a=1,b=2,A=3,B=3,savename="plot"):	
 
-		fig=plt.figure(titlebar+str(type(self.ansatz))+', d='+str(self.d)+', n='+str(self.n))
+		fig=plt.figure(titlebar+' | true='+self.truth.typestr()+'(blue) | learned='+self.ansatz.typestr()+'(red) | d='+str(self.d)+', n='+str(self.n))
 		randkey,*subkeys=jax.random.split(randkey,A*B+2)
 
 		gs=GridSpec(A,B,hspace=.3)
@@ -171,7 +171,7 @@ class Plots:
 #		self.plotgrid('4-point level sets',self.comparelevelsets,subkey,A=1,B=1,savename='levelsets')
 #
 #		randkey,subkey=jax.random.split(randkey)
-#		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename=self.antistring+'symmetry')
+#		self.plotgrid('symmetry plots',self.showsymmetry,subkey,A=1,B=1,savename='symmetry')
 #
 		randkey,subkey=jax.random.split(randkey)
 		self.plotgrid('segments ',self.segment,subkey,b=1,A=2,B=3,savename='segments')
@@ -190,6 +190,5 @@ if __name__=='__main__':
 	plots=Plots("data/"+filename)
 	plots.allplots()
 	
-
 	plt.show()
 
