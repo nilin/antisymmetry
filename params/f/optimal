@@ -1,0 +1,8 @@
+layers 4
+internal_layer_width 50
+training_batch_size 1000
+batch_count 1000
+d 2
+n 3
+m_truth 10
+ndets 10

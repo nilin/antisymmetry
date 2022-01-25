@@ -11,19 +11,23 @@ import jax.numpy as jnp
 import sys
 import os
 import optax
+import antisymmetry.compare as compare
 
 
 
 
 params_f_small={'n':3,'d':2,'internal_layer_width':10,'layers':3,'ndets':1}
-params_f_large={'n':3,'d':2,'internal_layer_width':20,'layers':3,'ndets':10}
+params_f_large={'n':3,'d':2,'internal_layer_width':50,'layers':4,'ndets':10}
+#params_f_large={'n':3,'d':2,'internal_layer_width':20,'layers':3,'ndets':10}
 #params_f_small=params_f_large
 
 params_a_small={'n':3,'d':2,'m':10,'p':10}
-params_a_large={'n':3,'d':2,'m':25,'p':25}
+params_a_large={'n':3,'d':2,'m':50,'p':80}
+#params_a_large={'n':3,'d':2,'m':25,'p':25}
 #params_a_small=params_a_large
 
-params={'n':3,'d':2,'training_batch_size':1000,'batch_count':500}
+#params={'n':3,'d':2,'training_batch_size':1000,'batch_count':500}
+params={'n':3,'d':2,'training_batch_size':1000,'batch_count':1000}
 
 X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 
@@ -55,6 +59,26 @@ def test_FermiNet_on_self(randkey):
 	truth.normalize(X_distribution)
 
 	ansatz=learning.FermiNet(params_f_large,subkeys[1])
+	
+	#observable = compare.single_particle_moments(3)
+	#compare.compare(truth,ansatz,params_f_large,observable)
+
+	return print_train_getplot(subkeys[2],truth,ansatz,opt_f)
+
+def test_FermiNet_params(randkey):
+
+	randkey,*subkeys=jax.random.split(randkey,4)
+
+	truth_param = params.copy()
+	truth_param['m'] = 10
+
+	truth=learning.GenericAntiSymmetric(truth_param,subkeys[0])
+	truth.normalize(X_distribution)
+
+	ansatz=learning.FermiNet(params_f_large,subkeys[1])
+	
+	observable = compare.single_particle_moments(3)
+	compare.compare(truth,ansatz,params_f_large,observable)
 
 	return print_train_getplot(subkeys[2],truth,ansatz,opt_f)
 
@@ -69,7 +93,27 @@ def test_Antisatz_on_self(randkey):
 
 	ansatz=learning.Antisatz(params_a_large,subkeys[1])
 
+	observable = compare.single_particle_moments(3)
+	compare.compare(truth,ansatz,params_a_large,observable)
+
 	return print_train_getplot(subkeys[2],truth,ansatz,opt_a)
+
+
+def test_Antisatz_params(randkey):
+
+	randkey,*subkeys=jax.random.split(randkey,4)
+	truth_param = params.copy()
+	truth_param['m'] = 10
+
+	truth=learning.GenericAntiSymmetric(truth_param,subkeys[0])
+	truth.normalize(X_distribution)
+
+	ansatz=learning.Antisatz(params_a_large,subkeys[1])
+	
+	observable = compare.single_particle_moments(3)
+	compare.compare(truth,ansatz,params_a_large,observable)
+
+	return print_train_getplot(subkeys[2],truth,ansatz,opt_f)
 
 
 def test_F_on_A(randkey):
@@ -102,14 +146,16 @@ def test_A_on_F(randkey):
 randkey=jax.random.PRNGKey(1)
 randkey,*subkeys=jax.random.split(randkey,5)
 
-a_plots=test_Antisatz_on_self(subkeys[0])
-f_plots=test_FermiNet_on_self(subkeys[1])
-f_on_a_plots=test_F_on_A(subkeys[2])
-a_on_f_plots=test_A_on_F(subkeys[3])
+#a_plots=test_Antisatz_on_self(subkeys[0])
+#a_plots=test_Antisatz_params(subkeys[0])
+#f_plots=test_FermiNet_on_self(subkeys[1])
+f_plots=test_FermiNet_params(subkeys[1])
+#f_on_a_plots=test_F_on_A(subkeys[2])
+#a_on_f_plots=test_A_on_F(subkeys[3])
 
-a_on_f_plots.allplots()
-f_on_a_plots.allplots()
-f_plots.allplots()
+#a_on_f_plots.allplots()
+#f_on_a_plots.allplots()
+#f_plots.allplots()
 a_plots.allplots()
 
 plt.show()

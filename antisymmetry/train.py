@@ -82,8 +82,13 @@ def initialize(randkey):
 	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
 	#X_distribution=lambda key,samples:jax.random.uniform(key,shape=(samples,params['n'],params['d']),minval=-1,maxval=1)
 
-	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth']}
+	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth'],'batch_count':params['batch_count']}
 	truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
+
+	# to test optimal parameters with truth function of the same type
+	#truth_params = params.copy()
+	#truth_params['m'] = m_truth
+	#truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.Antisatz(truth_params,randkey1) if Ansatztype=='a' else learning.FermiNet(truth_params,randkey1)
 	truth.normalize(X_distribution)
 			
 	ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)

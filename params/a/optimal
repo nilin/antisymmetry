@@ -1,0 +1,7 @@
+d 2
+n 3
+p 80
+m 50
+m_truth 10
+training_batch_size 1000
+batch_count 1000

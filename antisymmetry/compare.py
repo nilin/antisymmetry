@@ -56,19 +56,6 @@ def compare(truth,ansatz,params,observables,rtol=1/10):
 	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
 	#np.testing.assert_allclose(observables_truth,observables_ansatz,rtol=1/100)
 
-	#strictly squared loss
-	diff_matrix = jnp.abs(observables_truth-observables_ansatz)
-	sqrd_loss = diff_matrix**2
-	rel_err = jnp.abs(jnp.mean(sqrd_loss))
-	print("mean square loss = ", rel_err, " With parameters: ", params)
-
-	#squared percent diff
-	diff_matrix = jnp.abs(observables_truth-observables_ansatz)
-	rel_err_matrix = jnp.divide(diff_matrix,observables_truth)
-	sqrd_loss = rel_err_matrix**2
-	rel_err = jnp.abs(jnp.mean(sqrd_loss))
-	print("mean square percent diff = ", rel_err, " With parameters: ", params)
-
 	#np testing: if ansatz gives observable within 10% of truth function
 	#print('observables true function:\n'+str(observables_truth))
 	#print('observables Ansatz:\n'+str(observables_ansatz))
@@ -79,7 +66,6 @@ def compare(truth,ansatz,params,observables,rtol=1/10):
 if __name__=='__main__':
 
 	observables=single_particle_moments(3)
-	#observables = lambda x: x #strictly the two functions 
 		
 	args=sys.argv[1:]
 	if len(args)==0:
