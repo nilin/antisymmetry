@@ -96,7 +96,23 @@ def initialize(randkey):
 	print_params(truth,ansatz,params)
 	return truth,ansatz,params,X_distribution
 
+def initial(randkey,param_file,Ansatztype):
+	#source: antisymmetry/train.py/initialize()
+	
+	params = get_params(Ansatztype+"/"+param_file)
 
+	randkey1,randkey2=jax.random.split(randkey)
+	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
+	#X_distribution=lambda key,samples:jax.random.uniform(key,shape=(samples,params['n'],params['d']),minval=-1,maxval=1)
+
+	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth'],'batch_count':params['batch_count']}
+	truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
+	truth.normalize(X_distribution)
+			
+	ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
+
+	print_params(truth,ansatz,params)
+	return truth,ansatz,params,X_distribution
 
 
 if __name__=='__main__':

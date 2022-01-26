@@ -61,7 +61,32 @@ def compare(truth,ansatz,params,observables,rtol=1/10):
 	#print('observables Ansatz:\n'+str(observables_ansatz))
 	np.testing.assert_allclose(observables_truth,observables_ansatz,rtol=rtol) 
 
+def get_max(truth,ansatz,params,observables):
+	#source: antisymmetry/compare.py/compare()
+	#modification: returns the maximum-relative-error by the given parameters through a mcmc.
 
+	n=params['n']
+	d=params['d']
+	randkey=jax.random.PRNGKey(0); key,*subkeys=jax.random.split(randkey,10)
+
+	n_walkers=1000
+	n_burn=250
+	n_steps=250
+
+	start_positions=jax.random.uniform(subkeys[1],shape=(n_walkers,n,d))
+
+	amplitude_truth=truth.evaluate	
+	amplitude_ansatz=ansatz.evaluate	
+
+	walkers_truth=mcmc.Metropolis(amplitude_truth,start_positions,quantum=True)
+	walkers_ansatz=mcmc.Metropolis(amplitude_ansatz,start_positions,quantum=True)
+	
+	observables_truth=walkers_truth.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
+	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
+
+	rel_diff_matrix = np.abs(observables_truth - observables_ansatz) / observables_truth
+	max_rel_err = float(max(rel_diff_matrix))
+	return max_rel_err
 
 if __name__=='__main__':
 

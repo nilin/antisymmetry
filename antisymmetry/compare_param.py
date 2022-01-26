@@ -3,13 +3,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import antisymmetry.learning as learning
-import antisymmetry.mcmc as mcmc
-import antisymmetry.plotdata as plotdata
 import antisymmetry.train as train
 import antisymmetry.compare as compare
-#import sys
 import pickle
-#import os
 
 """
 #VERSION ONE: create a list of param file names, train with each parameter set, store plots, and compare their observables.
@@ -70,7 +66,6 @@ os.system(command)
 cast_type=lambda val,key:float(val) if key=='threshold' else int(val)
 def write_paramfile(params,model):
 	#params should be a dictionary containing the params needed to create a param file.
-	#TODO: create write file function to put these params into a file with space and lines for main.py parsing 
 	filename = ""
 	for k,v in params.items():
 		filename = filename + str(k)+str(v)
@@ -85,56 +80,11 @@ def write_paramfile(params,model):
 	file.close()
 	return filename
 
-def smaller(truth,ansatz,params,observables,cur_min):
-	#source: antisymmetry/compare.py/compare()
-	#modification: returns whether the current params give a maximum-relative-error smaller than the current minimum.
-
-	n=params['n']
-	d=params['d']
-	randkey=jax.random.PRNGKey(0); key,*subkeys=jax.random.split(randkey,10)
-
-	n_walkers=1000
-	n_burn=250
-	n_steps=250
-
-	start_positions=jax.random.uniform(subkeys[1],shape=(n_walkers,n,d))
-
-	amplitude_truth=truth.evaluate	
-	amplitude_ansatz=ansatz.evaluate	
-
-	walkers_truth=mcmc.Metropolis(amplitude_truth,start_positions,quantum=True)
-	walkers_ansatz=mcmc.Metropolis(amplitude_ansatz,start_positions,quantum=True)
-	
-	observables_truth=walkers_truth.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
-	observables_ansatz=walkers_ansatz.evaluate_observables(observables,n_burn,n_steps,subkeys[3])
-
-	rel_diff_matrix = np.abs(observables_truth - observables_ansatz) / observables_truth
-	max_rel_err = float(max(rel_diff_matrix))
-	return min(max_rel_err, cur_min)
-
-def initial(randkey,param_file,Ansatztype):
-	#source: antisymmetry/train.py/initialize()
-	
-	params = train.get_params(Ansatztype+"/"+param_file)
-
-	randkey1,randkey2=jax.random.split(randkey)
-	X_distribution=lambda key,samples:jax.random.normal(key,shape=(samples,params['n'],params['d']))
-	#X_distribution=lambda key,samples:jax.random.uniform(key,shape=(samples,params['n'],params['d']),minval=-1,maxval=1)
-
-	truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth'],'batch_count':params['batch_count']}
-	truth=learning.GenericSymmetric(truth_params,randkey1) if Ansatztype=='s' else learning.GenericAntiSymmetric(truth_params,randkey1)
-	truth.normalize(X_distribution)
-			
-	ansatz=learning.SymAnsatz(params,randkey2) if Ansatztype=='s' else learning.Antisatz(params,randkey2) if Ansatztype=='a' else learning.FermiNet(params,randkey2)
-
-	train.print_params(truth,ansatz,params)
-	return truth,ansatz,params,X_distribution
-
-def training(paramfile, cur_min, ansatztype):
+def training(paramfile, ansatztype):
 	randkey=jax.random.PRNGKey(0)
 	randkey1,randkey2=jax.random.split(randkey)
 
-	truth,ansatz,params,X_distribution=initial(randkey1,paramfile,ansatztype)
+	truth,ansatz,params,X_distribution=train.initial(randkey1,paramfile,ansatztype)
 	learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
 	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
 	train.savedata(thedata)
@@ -146,7 +96,18 @@ def training(paramfile, cur_min, ansatztype):
 		truth=data["true_f"]
 		ansatz=data["Ansatz"]
 		params=data["params"]
-	return smaller(truth,ansatz,params,observables,cur_min)
+	return compare.get_max(truth,ansatz,params,observables)
+
+def put_in_stack(stack, new_item):
+	#given a list (assume sorted from min to max) and a new item, add the new item to the list to maintain sorting
+	end = len(stack)
+	look = 0
+	while look < end and new_item > stack[look]:
+		look += 1
+	if look >= end:
+		stack.append(new_item)
+	else:
+		stack = stack[:look] +[new_item] + stack[look:]
 
 if __name__=='__main__':
 	optimal = {'d':2,'n':3,'training_batch_size':1000,'batch_count':1000}
@@ -154,7 +115,7 @@ if __name__=='__main__':
 	stack = []
 	params_dict = {}
 
-	l_list = [50,100]
+	l_list = [4,10,20]
 	width_list = [50,100]
 	#l_list = jnp.arange(50,200,50)
 	#width_list = jnp.arange(10,200,50)
@@ -168,12 +129,11 @@ if __name__=='__main__':
 				dic['internal_layer_width'] = w_val
 				dic['ndets'] = n_val
 				param_filename = write_paramfile(dic,"f")
-				if len(stack) >= 5:
-					params_dict.pop(stack[0])
-					stack = stack[1:]
-				new_min = training(param_filename,cur_min, "f")
-				stack.append(new_min)
-				params_dict[new_min] = dic
-	print(params_dict)
+				new_item = training(param_filename,"f")
+				put_in_stack(stack, new_item)
+				params_dict[new_item] = dic
+	for i in range(5):
+		print(stack[i])
+		print(params_dict[stack[i]])
 					
 				
