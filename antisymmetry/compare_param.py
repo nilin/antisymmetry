@@ -108,10 +108,12 @@ def put_in_stack(stack, new_item):
 		stack.append(new_item)
 	else:
 		stack = stack[:look] +[new_item] + stack[look:]
+	return stack
 
+
+"""
 if __name__=='__main__':
 	optimal = {'d':2,'n':3,'training_batch_size':1000,'batch_count':1000}
-	cur_min = 10e7
 	stack = []
 	params_dict = {}
 
@@ -135,5 +137,44 @@ if __name__=='__main__':
 	for i in range(5):
 		print(stack[i])
 		print(params_dict[stack[i]])
-					
-				
+"""
+
+
+if __name__=='__main__':
+	optimal = {'d':2,'n':3,'training_batch_size':1000,'batch_count':1000}
+	one_layer = []
+	multi_layer = []
+	params_dict = {}
+	cnt = 0
+
+	l_list = [4,10,20]
+	width_list = [50,100]	
+	for l_val in l_list:
+		for w_val in width_list:
+			dic = optimal.copy()
+			dic['layers'] = l_val
+			dic['internal_layer_width'] = w_val
+			dic['ndets'] = 1
+			param_filename = write_paramfile(dic,"f")
+			one_item = training(param_filename,"f")
+			one_layer = put_in_stack(one_layer, one_item)
+			params_dict[one_item] = dic
+
+			dic = optimal.copy()
+			dic['layers'] = l_val
+			dic['internal_layer_width'] = w_val
+			dic['ndets'] = 16
+			param_filename = write_paramfile(dic,"f")
+			multi_item = training(param_filename,"f")
+			multi_layer = put_in_stack(multi_layer, multi_item)
+			params_dict[multi_item] = dic
+
+			if one_item < multi_item:
+				cnt += 1
+
+	print("one_determinant model maximum relative error list")
+	print(one_layer)
+	print("multi_determinant (ndets=10) model maximum relative error list")
+	print(multi_layer)
+
+	print("percent of parameters that works better with ndets=1: ", cnt, "/",len(one_layer),cnt / len(one_layer) * 100, "%")
