@@ -76,6 +76,9 @@ class Ansatz:
 		fy_list=jnp.array([f_list,y_list])
 		return jnp.average(jax.vmap(loss,1)(fy_list))
 
+	def path_norm_reg_loss(self,PARAMS,X_list,y_list,lmda):
+		pass
+
 	def regularize(self,r):
 		pass
 
@@ -104,6 +107,23 @@ class Antisatz(Ansatz):
 		self.PARAMS={'V':V,'b':b,'W':W,'a':a}
 		super().__init__()
 
+	""" 
+		#Attempt at Regularization with path norm of two-layer ansatz, currently returning linear negative loss.
+		#Not sure if the grad is looking at the path norm calculation while taking grad. 
+		#Need to learn more about how jAX works.
+		
+	def path_norm_reg_loss(self,PARAMS,X_list,y_list,lmda):
+		#J = L(theta)+lambda*||theta||_p,
+		#||theta||_p = sum_(k=1)^m a_k
+		path_norm = np.sum(PARAMS['W'],axis=0)[1]
+		#or should we only use the second column of W since we take the coefficients of the inner layer?
+		#W = PARAMS['W']
+		#path_norm = sum(W.T[1])
+		f_list=jax.vmap(self.evaluate_,[0,None])(X_list,PARAMS)
+		fy_list=jnp.array([f_list,y_list])
+		L = jnp.average(jax.vmap(loss,1)(fy_list)) + lmda*path_norm
+		return L
+	"""
 
 	def evaluate_(self,X,PARAMS):
 		V,b,W,a=(PARAMS[key] for key in ['V','b','W','a'])
@@ -161,7 +181,8 @@ class FermiNet(Ansatz):
 
 		return multiplier*jnp.sum(jax.vmap(jnp.linalg.det)(Phi))
 
-
+	def path_norm_reg_loss(self, PARAMS, X_list, y_list, lmda):
+		return self.avg_loss(PARAMS, X_list, y_list)
 
 	def regularize(self,r):
 		for key,M in self.PARAMS.items():
@@ -170,7 +191,6 @@ class FermiNet(Ansatz):
 					self.PARAMS[key][i]=r*self.PARAMS[key][i]
 			else:
 				self.PARAMS[key]=r*self.PARAMS[key]
-
 
 	def typestr(self):
 		return 'FermiNet'
@@ -337,7 +357,10 @@ def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer
 
 		ansatz.regularize(.999)	
 
+
 		loss,grads=jax.value_and_grad(ansatz.avg_loss,0)(ansatz.PARAMS,X_list,Y_list)
+		#loss_func = ansatz.path_norm_reg_loss
+		#loss,grads=jax.value_and_grad(loss_func,0)(ansatz.PARAMS,X_list,Y_list,0.5)
 		loss_estimate=loss if i==0 else r*loss+(1-r)*loss_estimate
 		losses.append(loss)
 		smoothedlosses.append(loss_estimate)
@@ -352,9 +375,21 @@ def learn(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution,optimizer
 		#roundloss=round(loss_estimate*1000)/1000
 		#print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+'] '+str(roundloss),end='\r')
 
-		if i>smoothingperiod and smoothedlosses[-1]>1.05*smoothedlosses[-smoothingperiod]:
-			print('\nConverged after '+str(i)+' batches')
-			break
+		#if i>smoothingperiod and smoothedlosses[-1]>1.05*smoothedlosses[-smoothingperiod]:
+		#	print('\nConverged after '+str(i)+' batches')
+		#	break
 
 	return losses
 
+def test(truth,ansatz,batchsize,maxbatchnumber,randkey,X_distribution):
+	losses=[]
+
+	for i in range(maxbatchnumber):
+		randkey,subkey=jax.random.split(randkey)
+		X_list=X_distribution(subkey,batchsize)
+		Y_list=jax.vmap(truth.evaluate)(X_list)
+
+		loss = ansatz.avg_loss(ansatz.PARAMS,X_list,Y_list)
+		losses.append(loss)
+
+	return losses

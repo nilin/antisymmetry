@@ -121,9 +121,25 @@ if __name__=='__main__':
 	randkey1,randkey2=jax.random.split(randkey)
 
 	truth,ansatz,params,X_distribution=initialize(randkey1)
-	learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
+	training_loss = learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
 
 
 	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
 	savedata(thedata)
-	print('\nTo view plots, run\n>>python antisymmetry/plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python antisymmetry/compare.py'+bar)
+	#print('\nTo view plots, run\n>>python antisymmetry/plotdata.py\n and press enter when prompted\n\nTo compare observables, run\n>>python antisymmetry/compare.py'+bar)
+
+	#testing
+	randkey = jax.random.PRNGKey(1)
+	randkey3,randkey4 = jax.random.split(randkey)
+	if "test_batch_count" not in params:
+		params["test_batch_count"] = 1000
+	#truth_params={'d':params['d'],'n':params['n'],'m':params['m_truth'],'batch_count':params['batch_count']}
+	#truth_testing=learning.GenericAntiSymmetric(truth_params,randkey3)
+	testing_loss = learning.test(truth, ansatz, params['training_batch_size'],params['test_batch_count'],randkey4,X_distribution)
+	#testing_loss = learning.test(truth_testing, ansatz, params['training_batch_size'],params['test_batch_count'],randkey4,X_distribution)
+	plt.plot(np.arange(params['batch_count']),training_loss, label='training loss',linewidth=0.5)
+	plt.plot(np.arange(params['test_batch_count']),testing_loss, label='testing loss',linewidth=0.5)
+	plt.xlabel("epochs")
+	plt.ylabel("loss")
+	plt.legend()
+	plt.show()
