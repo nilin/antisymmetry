@@ -121,7 +121,7 @@ if __name__=='__main__':
 	randkey1,randkey2=jax.random.split(randkey)
 
 	truth,ansatz,params,X_distribution=initialize(randkey1)
-	training_loss = learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
+	training_loss, max_losses = learning.learn(truth,ansatz,params['training_batch_size'],params['batch_count'],randkey2,X_distribution)
 
 
 	thedata={'true_f':truth,'Ansatz':ansatz,'params':params}
@@ -137,8 +137,11 @@ if __name__=='__main__':
 	#truth_testing=learning.GenericAntiSymmetric(truth_params,randkey3)
 	testing_loss = learning.test(truth, ansatz, params['training_batch_size'],params['test_batch_count'],randkey4,X_distribution)
 	#testing_loss = learning.test(truth_testing, ansatz, params['training_batch_size'],params['test_batch_count'],randkey4,X_distribution)
-	plt.plot(np.arange(params['batch_count']),training_loss, label='training loss',linewidth=0.5)
+	#plt.plot(np.arange(params['batch_count']),training_loss, label='training loss',linewidth=0.5)
+	plt.plot(np.arange(params['batch_count']),max_losses, label='training loss',linewidth=0.5)
 	plt.plot(np.arange(params['test_batch_count']),testing_loss, label='testing loss',linewidth=0.5)
+	#plt.title("Maximum Loss for Backflow network, internal width="+str(params["internal_layer_width"])+", layers="+str(params["layers"]))
+	plt.title("Maximum Loss for Two-layer network, p="+str(params["p"])+", m="+str(params["m"]))
 	plt.xlabel("epochs")
 	plt.ylabel("loss")
 	plt.legend()
