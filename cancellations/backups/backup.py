@@ -12,15 +12,51 @@ import copy
 import jax
 import jax.numpy as jnp
 import optax
-import util
 import cancellation as canc
-import DPP
+import cancellation_full as full
 	
 
 
 
 key=jax.random.PRNGKey(0)
 key,*subkeys=jax.random.split(key,1000)
+
+
+def estimate_var(f,X_distribution,n_samples,key):
+
+	X=X_distribution(key,n_samples)
+
+	Y=jax.vmap(f)(X)
+	variance=jnp.var(Y)
+
+	validate(Y)
+
+	return variance,Y
+
+def validate(Y):
+	Xs=Y.shape[0]
+	fs=Y.shape[1]
+	T=jnp.take(Y,np.array([0,Xs//2]),axis=0)
+	B=jnp.take(Y,np.array([Xs//2,Xs]),axis=0)
+	L=jnp.take(Y,np.array([0,fs//2]),axis=1)
+	R=jnp.take(Y,np.array([fs//2,fs]),axis=1)
+
+	vars_by_f=jnp.var(Y,axis=0)
+	vars_by_x=jnp.var(Y,axis=1)
+	print(jnp.var(vars_by_f))
+	print(jnp.var(vars_by_x))
+	print('')
+
+	print(jnp.var(T))
+	print(jnp.var(B))
+	print(jnp.var(L))
+	print(jnp.var(R))
+	print('')
+
+	print('var of first/last Xs log-ratio '+str(jnp.log(jnp.var(T)/jnp.var(B))))
+	print('var of first/last fs log-ratio '+str(jnp.log(jnp.var(L)/jnp.var(R))))
+	print('\n')
+	
 
 
 
@@ -41,10 +77,10 @@ def duality(key,dist_W,dist_X,instances,samples):
 def lipschitz(f,Xdist,samples,eps,key):
 
 	key,*subkeys=jax.random.split(key,4)
-	X0=Xdist(subkeys[0],samples)
-	s=X0.shape
-	dXdist=canc.spherical(s[-2],s[-1],radius=eps)
+	s=X.shape
+	dXdist=canc.sphere(s[-2],s[-1],radius=eps)
 
+	X0=Xdist(subkeys[0],samples)
 	dX=dXdist(subkeys[1],samples)
 	X1=X0+dX
 
@@ -52,6 +88,15 @@ def lipschitz(f,Xdist,samples,eps,key):
 	return jnp.max(jnp.abs(dY)/eps)
 	
 	
+
+	
+
+
+
+
+
+
+
 
 
 def plot_duality(key,instances,samples,by='X',bw_=.1,figname='dual.pdf'):
@@ -62,8 +107,8 @@ def plot_duality(key,instances,samples,by='X',bw_=.1,figname='dual.pdf'):
 
 	W,X,Y=duality(key,Gaussian,Gaussian,instances,samples)
 	#W,X,Y=duality(key,sphere,sphere,instances,samples)
-	dW_=util.mindist(W)
-	dX_=util.mindist(X)	
+	dW_=full.mindist(W)
+	dX_=full.mindist(X)	
 	dW=jnp.repeat(jnp.expand_dims(dW_,axis=1),samples,axis=1)
 	dX=jnp.repeat(jnp.expand_dims(dX_,axis=0),instances,axis=0)
 
@@ -95,7 +140,7 @@ def d_vs_var(key,instances,samples,params={'n':6,'d':3},draw=True):
 
 	W,X,Y=duality(key,Gaussian,Gaussian,instances,samples)
 	#W,X,Y=duality(key,sphere,sphere,instances,samples)
-	dW=util.mindist(W)
+	dW=full.mindist(W)
 
 	variances=jnp.var(Y,axis=1)
 	std_devs=jnp.sqrt(variances)
@@ -146,7 +191,7 @@ def plot_dsquare():
 			key=subkeys[10*n+d]
 			Gaussian=canc.Gaussian(n,d)
 			W=Gaussian(key,10000)/jnp.sqrt(n*d)
-			dist=util.mindist(W)
+			dist=full.mindist(W)
 			dsquare=jnp.average(jnp.square(dist))
 			dsquares_d.append(dsquare)
 		dsquares.append(dsquares_d)
@@ -180,7 +225,7 @@ def plots():
 			variances[d].append(jnp.var(Y))
 			print('at n='+str(n)+', d='+str(d)+', var='+str(jnp.var(Y)))
 		print('')
-		util.savedata(variances,'variances')	
+		savedata(variances,'variances')	
 
 		plt.figure()
 		plt.yscale('log')
@@ -193,7 +238,7 @@ def plots():
 
 
 
-def test_lipschitz():
+def plots_():
 
 	variances=[]
 
@@ -209,54 +254,26 @@ def test_lipschitz():
 		f=simple.evaluate
 		g=canc.antisymmetrize(f)
 
-		print(lipschitz(f,X_distribution,1000,.01,subkeys[2*n+1]))
+		var,_=estimate_var(g,X_distribution,1000,subkeys[2*n+1])
 
-
-def sample_W_DPP(key,n,d,instances,steps=1000):
-
-	walkers=instances
-
-	rho=DPP.GG_DPP_density(1,1)
-	sampler=DPP.Sampler(rho,n,d,walkers,key)
-
-	X=sampler.sample(1,steps)
-	return X[0]
-
-
-
-def test_DPP(key):
-
-	key,*subkeys=jax.random.split(key,1000)
-
-	instances=1000
-	steps=100
-	samples=1000
-	variances=[]
-	d=3
-
-	n_range=range(1,10)
-
-	W_={n:sample_W_DPP(subkeys[2*n],n,d,instances,steps) for n in n_range}
-	X_={n:jax.random.normal(subkeys[2*n+1],shape=(samples,n,d)) for n in n_range}
-
-	vars_nonsymmetrized=[jnp.var(canc.apply_tau(W_[n],X_[n])) for n in n_range]
-	util.plot(n_range,vars_nonsymmetrized)
-	
-
-	for n in n_range:
-
-		
-
-		W=sample_W_DPP(subkeys[2*n],n,d,instances)
-		X=jax.random.normal(subkeys[2*n+1],shape=(samples,n,d))
-		Y=canc.apply_alpha(W,X)
-
-		variances.append(jnp.var(Y))
+		variances.append(var)
+		savedata(variances,'variances'+paramstring)	
 
 		plt.figure()
-		plt.yscale('log')
-		plt.plot(range(2,n+1),jnp.array([math.factorial(i) for i in range(2,n+1)]),color='b')
-		plt.plot(range(2,n+1),jnp.array(variances),color='r')
-		plt.scatter(range(2,n+1),jnp.array(variances),color='r')
-		plt.savefig('plots/test_det_'+str(n)+'.pdf')
+		plt.plot(range(2,n+1),jnp.log(jnp.array(variances)),color='r')
+		plt.plot(range(2,n+1),jnp.log(jnp.array([math.factorial(i) for i in range(2,n+1)])),color='b')
+		plt.savefig('plots/vars'+paramstring+str(n)+'.pdf')
+
+
+def savedata(thedata,filename):
+        filename='data/'+filename
+        with open(filename,'wb') as file:
+                pickle.dump(thedata,file)
+
+#plot_dsquare()
+#plotphi()
+#plot_duality(key,250,100,by='W',bw_=.1,figname='by_w.pdf')	
+#d_vs_var(key,10000,100)	
+#plots()
+
 

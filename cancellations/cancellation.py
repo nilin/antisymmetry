@@ -40,19 +40,33 @@ envelope_FN=envelope
 
 
 
-class TwoLayer:
-	def __init__(self,params,randomness_key):
-		self.params=params
-		d,n,m=params['d'],params['n'],params['m']
-		key,*subkeys=jax.random.split(randomness_key,4)
 
-		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))*jnp.sqrt(2/(d*n))
-		self.a=jax.random.normal(subkeys[1],shape=(m,))*jnp.sqrt(2/m)
+apply_tau=lambda W,X:ReLU(jnp.matmul(jax.lax.collapse(W,1,3),jax.lax.collapse(X,1,3).T))
 
-	def evaluate(self,X):
-		X_vec=jnp.ravel(X)
-		layer1=activation(jnp.dot(self.W,X_vec))
-		return jnp.dot(self.a,layer1)
+def w_to_alpha(W):
+	F=lambda X:apply_tau(W,X)
+	return antisymmetrize(F)
+
+def apply_alpha(W,X):
+	alpha_w=w_to_alpha(W)
+	return alpha_w(X)
+
+
+
+
+
+
+def antisymmetrize(f):
+	def antisymmetric(X):
+		y=jnp.zeros(f(X).shape)
+		for P in itertools.permutations(jnp.identity(X.shape[-2])):
+			sign=jnp.linalg.det(P)
+			PX=jnp.swapaxes(jnp.dot(jnp.array(P),X),0,-2)
+			y+=sign*f(PX)
+		return y
+	return antisymmetric
+	
+
 
 
 
@@ -71,18 +85,6 @@ class Simple:
 	def evaluate(self,X):
 		X_vec=jnp.ravel(X)
 		return jnp.multiply(self.a,activation(jnp.dot(self.W,X_vec)))
-
-
-def antisymmetrize(f):
-	def antisymmetric(X):
-		y=jnp.zeros(len(f(X)))
-		for P in itertools.permutations(jnp.identity(X.shape[-2])):
-			sign=jnp.linalg.det(P)
-			PX=jnp.matmul(jnp.array(P),X)	
-			y+=sign*f(PX)
-		return y
-	return antisymmetric
-	
 
 
 def distribution(f,X_distribution,samples=100):
@@ -113,53 +115,16 @@ def spherical(n,d,radius=1):
 
 
 
-def plots():
+class TwoLayer:
+	def __init__(self,params,randomness_key):
+		self.params=params
+		d,n,m=params['d'],params['n'],params['m']
+		key,*subkeys=jax.random.split(randomness_key,4)
 
-	m_list=[1,10,100]
-	antisymvars={m:[] for m in m_list}
+		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))*jnp.sqrt(1/(d*n))
+		self.a=jax.random.normal(subkeys[1],shape=(m,))*jnp.sqrt(1/m)
 
-	for n in range(2,15):
-		plt.figure()
-
-
-		for m in m_list:
-		
-			params={'d':3,'n':n,'m':m}
-			k=10
-			X_distribution=Gaussian(params['n'],params['d'])
-			#X_distribution=spherical(params['n'],params['d'],jnp.sqrt(params['n']*params['d']))
-			key=jax.random.PRNGKey(n)
-			key,*subkeys=jax.random.split(key,k+2)
-			antisymvar=[]
-			for i in range(k):
-				tl=TwoLayer(params,subkeys[i])
-				f=tl.evaluate
-				g=antisymmetrize(f)
-
-				nsd=distribution(f,X_distribution)
-				asd=distribution(g,X_distribution)
-
-
-				antisymvar.append(jnp.var(asd))
-				print('variance of antisymmetrized: '+str(antisymvar[-1]))
-				print('')
-			
-			print('average variance of antisymmetrized: '+str(jnp.average(jnp.array(antisymvar))))
-			print(str(n)+100*'_')
-
-			antisymvars[m].append(jnp.average(jnp.array(antisymvar)))
-			plt.plot(range(2,n+1),jnp.log(jnp.array(antisymvars[m])),color='r')
-
-		savedata(antisymvars)	
-
-		plt.plot(range(2,n+1),jnp.log(jnp.array([math.factorial(i) for i in range(2,n+1)])),color='b')
-		plt.savefig('plots/vars'+str(n)+'.pdf')
-
-
-def savedata(thedata):
-        filename='data/vars'+str(len(thedata[1]))
-        with open(filename,'wb') as file:
-                pickle.dump(thedata,file)
-
-#plots()
-
+	def evaluate(self,X):
+		X_vec=jnp.ravel(X)
+		layer1=activation(jnp.dot(self.W,X_vec))
+		return jnp.dot(self.a,layer1)

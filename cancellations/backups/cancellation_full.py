@@ -47,8 +47,8 @@ class TwoLayer:
 		d,n,m=params['d'],params['n'],params['m']
 		key,*subkeys=jax.random.split(randomness_key,4)
 
-		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))*jnp.sqrt(2/(d*n))
-		self.a=jax.random.normal(subkeys[2],shape=(m,))*jnp.sqrt(2/m)
+		self.W=jax.random.normal(subkeys[0],shape=(m,n*d))*jnp.sqrt(1/(d*n))
+		self.a=jax.random.normal(subkeys[2],shape=(m,))*jnp.sqrt(1/m)
 
 	def eval_raw(self,X):
 		X_vec=jnp.ravel(X)
@@ -105,7 +105,6 @@ def spherical(n,d,radius=1):
 	return (lambda key,samples:normalize(g(key,samples))*radius)
 
 
-"""
 def sample_symmetrized_sum(l,terms,n_samples,key):
 	
 	key,*subkeys=jax.random.split(key,2*n_samples+2)
@@ -129,6 +128,7 @@ def pairwisedistprop(X,loss):
 	return jax.vmap(loss)(dists)
 
 mindistsquared=lambda X:pairwisedistprop(X,jnp.min)
+mindist=lambda X:jnp.sqrt(pairwisedistprop(X,jnp.min))
 inverseloss=lambda x: 1/jnp.sum(1/x)
 
 
@@ -186,7 +186,7 @@ key=jax.random.PRNGKey(0)
 g=GenericAntiSymmetric(params,key)
 f=lambda x:g.eval(x)**2/(g.eval_raw(x)**2+.01)
 #f=lambda x:g.eval(x)**2
-plotxy(f,Gaussian(params['n'],params['d']),10000)	
+#plotxy(f,Gaussian(params['n'],params['d']),10000)	
 
 #plotxcorr(f,Gaussian(params['n'],params['d']),1000)	
 
@@ -230,7 +230,6 @@ def plots123():
 
 #plots123()
 
-"""
 
 def plots():
 
@@ -291,10 +290,11 @@ def plots():
 		#print(ds_estimate)
 
 		plt.figure()
-		plt.plot(range(2,n+1),jnp.log(jnp.array(antisymvars)),color='r')
-		plt.plot(range(2,n+1),jnp.log(jnp.array([math.factorial(i) for i in range(2,n+1)])),color='b')
-		plt.savefig('plots/vars'+str(n)+'.pdf')
+		plt.yscale('log')
+		plt.plot(range(2,n+1),jnp.array(antisymvars),color='r')
+		plt.plot(range(2,n+1),jnp.array([math.factorial(i) for i in range(2,n+1)]),color='b')
+		plt.savefig('plots/vars_old_'+str(n)+'.pdf')
 
 
 
-plots()
+#plots()
