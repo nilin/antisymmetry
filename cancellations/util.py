@@ -17,6 +17,46 @@ import DPP
 	
 
 
+def flatten_nd(x):
+	s=x.shape
+	newshape=s[:-2]+(s[-2]*s[-1],)
+	return jnp.reshape(x,newshape)
+
+def separate_n_d(x,n,d):
+	s=x.shape
+	newshape=s[:-1]+(n,d)
+	return jnp.reshape(x,newshape)
+	
+
+
+#def L2(functions,X_dist,X_density,n_samples,key):
+#	X_dist()
+#
+#def L2_from_data(Y,X,X_density):
+#
+#	densities=jnp.repeat(jnp.expand_dims(X_density(X),axis=0),Y.shape[0],axis=0)
+#	return jnp.average(Y.square/densities,axis=1)
+#	
+#
+#def check_L2(X,X_density,key,n_centers=5):
+#
+#	(n_samples,dim)=X.shape
+#	
+#	centers=jax.random.normal(n_centers,dim)
+#	centers_=jnp.repeat(jnp.expand_dims(centers,axis=1),n_samples,axis=1)
+#	X_=jnp.repeat(jnp.expand_dims(X,axis=0),n_centers,axis=0)
+#
+#	displacements=X_-centers_
+#	Y=jnp.exp(-jnp.sum(displacements.square,axis=-1)/2)/jnp.sqrt(2*math.pi)**dim
+#
+#	l2=L2_from_data(Y,X,X_density)
+#	np.testing.assert_allclose(l2,jnp.ones(n_centers),rtol=.01)
+
+
+pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
+
+
+
 def estimate_var(f,X_distribution,n_samples,key):
 
 	X=X_distribution(key,n_samples)
@@ -27,6 +67,9 @@ def estimate_var(f,X_distribution,n_samples,key):
 	validate(Y)
 
 	return variance,Y
+
+
+
 
 def validate(Y):
 	Xs=Y.shape[0]
@@ -67,34 +110,78 @@ def lipschitz(f,Xdist,samples,eps,key):
 
 	dY=f(X1)-f(X0)
 	return jnp.max(jnp.abs(dY)/eps)
-	
 
-def pairwisedistprop(X,loss):
+
+def pairwisediffs(X):
 	n=X.shape[-2]
 	stacked_x_1=jnp.repeat(jnp.expand_dims(X,-2),n,axis=-2)
 	stacked_x_2=jnp.swapaxes(stacked_x_1,-2,-3)
-	diffs=stacked_x_1-stacked_x_2
-	dists_=jnp.sum(jnp.square(diffs),axis=-1)
-	dists=jnp.take(np.partition(dists_,1,axis=-1),jnp.array([i for i in range(1,n)]),axis=-1)
-	return jax.vmap(loss)(dists)
+	return stacked_x_1-stacked_x_2
 
-mindistsquared=lambda X:pairwisedistprop(X,jnp.min)
-mindist=lambda X:jnp.sqrt(pairwisedistprop(X,jnp.min))
-inverseloss=lambda x: 1/jnp.sum(1/x)
+def pairwisedists(X):
+	return jnp.sum(jnp.square(pairwisediffs(X)),axis=-1)
 
 
 
+def Coulomb(X):
+	energies=jnp.triu(1/pairwisedists(X),k=1)
+	return jnp.sum(energies,axis=(-2,-1))
 
-def savedata(thedata,filename):
+
+def mindist(X):
+	energies=jnp.triu(1/pairwisedists(X),k=1)
+	return 1/jnp.max(energies,axis=(-2,-1))
+	
+
+
+
+def savedata(data,filename):
         filename='data/'+filename
         with open(filename,'wb') as file:
-                pickle.dump(thedata,file)
+                pickle.dump(data,file)
+
+def getdata(filename):
+	with open('data/'+filename,"rb") as file:
+		data=pickle.load(file)
+	return data
+
+def rangevals(_dict_):
+	range_vals=jnp.array([[k,v] for k,v in _dict_.items()]).T
+	return range_vals[0],range_vals[1]
+
+def saveplot(datanames,savename):
+	plt.figure()
+	plt.yscale('log')
+	for filename in datanames:
+		data=getdata(filename)
+		plot_dict(data)
+	plt.savefig('plots/'+savename+'.pdf')
+			
+def plot_dict(_dict_):
+	_range,sqnorms=rangevals(_dict_)
+	plt.scatter(_range,sqnorms,color='r')
+	plt.plot(_range,sqnorms,color='r')
 
 
+
+"""
 def plot(x,y):
 	plt.figure()
 	plt.yscale('log')
 	plt.plot(x,y,color='b')
 	plt.scatter(x,y,color='r')
 	plt.show()
+"""
 
+
+def intersect(x,y):
+	return range(max(x[0],y[0]),min(x[-1],y[-1])+1)
+
+
+
+
+def compare(x,y):
+	rel_err=jnp.linalg.norm(y-x,axis=-1)/jnp.linalg.norm(x,axis=-1)
+	print('maximum relative error')
+	print(jnp.max(rel_err))
+	print()

@@ -9,6 +9,7 @@ import seaborn as sns
 import pickle
 import time
 import copy
+import util
 import jax
 import jax.numpy as jnp
 import optax
@@ -21,7 +22,7 @@ import optax
 odd_angle=lambda x:(jnp.abs(x-1)-abs(x+1)+2*x)/4
 ReLU=lambda x:(jnp.abs(x)+x)/2
 activation=ReLU
-#activation=lambda x:jnp.sin(100*x)
+oscillating=lambda x:jnp.sin(100*x)
 #activation=lambda x:x
 
 odd_angle_leaky=lambda x:odd_angle(x)+.1*x
@@ -42,13 +43,14 @@ envelope_FN=envelope
 
 
 apply_tau=lambda W,X:ReLU(jnp.matmul(jax.lax.collapse(W,1,3),jax.lax.collapse(X,1,3).T))
+apply_tau_=lambda W,X,activation:activation(jnp.matmul(util.flatten_nd(W),util.flatten_nd(X).T))
 
-def w_to_alpha(W):
-	F=lambda X:apply_tau(W,X)
+def w_to_alpha(W,activation):
+	F=lambda X:apply_tau_(W,X,activation)
 	return antisymmetrize(F)
 
-def apply_alpha(W,X):
-	alpha_w=w_to_alpha(W)
+def apply_alpha(W,X,activation=ReLU):
+	alpha_w=w_to_alpha(W,activation)
 	return alpha_w(X)
 
 
@@ -100,6 +102,7 @@ def distribution(f,X_distribution,samples=100):
 
 def normalize(X):
 	return lambda x:x/jnp.sqrt(jnp.sum(jnp.square(x)))(X)
+
 def normalize_rows(X):
 	return jax.vmap(lambda x:x/jnp.sqrt(jnp.sum(jnp.square(x))))(X)
 

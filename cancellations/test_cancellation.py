@@ -1,4 +1,5 @@
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import math
 import itertools
@@ -13,8 +14,10 @@ import jax
 import jax.numpy as jnp
 import optax
 import util
+import bookkeep
 import cancellation as canc
 import DPP
+import opt
 	
 
 
@@ -87,8 +90,38 @@ def plot_duality(key,instances,samples,by='X',bw_=.1,figname='dual.pdf'):
 	plt.show()
 
 
-def d_vs_var(key,instances,samples,params={'n':6,'d':3},draw=True):
+def E_inv_vs_var_(W,X,draw=True,transform=lambda x:x,msg=''):	
+	dW=1/util.Coulomb(transform(W))
+	Y=canc.apply_alpha(W,X)
+	variances=jnp.var(Y,axis=1)
+	std_devs=jnp.sqrt(variances)
+	if(draw):
+		plt.figure()
+		plt.xlim(0,jnp.max(dW))
+		plt.ylim(0,jnp.max(std_devs))
+		plt.scatter(dW,std_devs,s=2)
+		plt.savefig('plots/d_vs_dev'+msg+'.pdf')
+		plt.show()
+	a=jnp.dot(dW,std_devs)/jnp.dot(dW,dW)
+	return a
 
+def d_vs_var_(W,X,draw=True,transform=lambda x:x,msg=''):	
+	dW=util.mindist(transform(W))
+	Y=canc.apply_alpha(W,X)
+	variances=jnp.var(Y,axis=1)
+	std_devs=jnp.sqrt(variances)
+	if(draw):
+		plt.figure()
+		plt.xlim(0,jnp.max(dW))
+		plt.ylim(0,jnp.max(std_devs))
+		plt.scatter(dW,std_devs,s=2)
+		plt.savefig('plots/d_vs_dev'+msg+'.pdf')
+		plt.show()
+	a=jnp.dot(dW,std_devs)/jnp.dot(dW,dW)
+	return a
+
+
+def d_vs_var(key,instances,samples,params={'n':6,'d':3},draw=True):
 	n,d=params['n'],params['d']	
 	Gaussian=canc.Gaussian(n,d)
 	sphere=canc.spherical(n,d)
@@ -109,8 +142,26 @@ def d_vs_var(key,instances,samples,params={'n':6,'d':3},draw=True):
 		plt.ylim(0,jnp.max(std_devs))
 		plt.scatter(dW,std_devs,s=2)
 		plt.savefig('plots/d_vs_dev_n='+str(n)+'_d='+str(d)+'.pdf')
-
 	return a
+
+
+def d_vs_var_3d(W,X,transform1,transform2,msg=''):
+	
+	dW1=util.mindist(transform1(W))
+	dW2=util.mindist(transform2(W))
+	Y=canc.apply_alpha(W,X)
+	variances=jnp.var(Y,axis=1)
+	std_devs=jnp.sqrt(variances)
+
+	fig=plt.figure()
+	ax=fig.add_subplot(111,projection='3d')
+	ax.scatter(dW1,dW2,std_devs,s=2)
+	#fig.savefig('plots/d_vs_dev_3d'+msg+'.pdf')
+	plt.show()
+
+
+
+
 
 def plotphi():
 	slopes=[]
@@ -180,7 +231,7 @@ def plots():
 			variances[d].append(jnp.var(Y))
 			print('at n='+str(n)+', d='+str(d)+', var='+str(jnp.var(Y)))
 		print('')
-		util.savedata(variances,'variances')	
+		bookkeep.savedata(variances,'variances')	
 
 		plt.figure()
 		plt.yscale('log')
@@ -212,51 +263,110 @@ def test_lipschitz():
 		print(lipschitz(f,X_distribution,1000,.01,subkeys[2*n+1]))
 
 
-def sample_W_DPP(key,n,d,instances,steps=1000):
-
-	walkers=instances
-
-	rho=DPP.GG_DPP_density(1,1)
-	sampler=DPP.Sampler(rho,n,d,walkers,key)
-
-	X=sampler.sample(1,steps)
-	return X[0]
+		
 
 
-
-def test_DPP(key):
+def test(gen_W,key):
 
 	key,*subkeys=jax.random.split(key,1000)
 
 	instances=1000
-	steps=100
 	samples=1000
-	variances=[]
 	d=3
-
+	variances={}
 	n_range=range(1,10)
 
-	W_={n:sample_W_DPP(subkeys[2*n],n,d,instances,steps) for n in n_range}
+	W_={n:gen_W(subkeys[2*n],shape=(instances,n,d)) for n in n_range}
 	X_={n:jax.random.normal(subkeys[2*n+1],shape=(samples,n,d)) for n in n_range}
 
 	vars_nonsymmetrized=[jnp.var(canc.apply_tau(W_[n],X_[n])) for n in n_range]
-	util.plot(n_range,vars_nonsymmetrized)
-	
 
-	for n in n_range:
+	plt.figure()
+	plt.ylim(bottom=0)
+	plt.plot(n_range,vars_nonsymmetrized,color='r')
 
-		
 
-		W=sample_W_DPP(subkeys[2*n],n,d,instances)
-		X=jax.random.normal(subkeys[2*n+1],shape=(samples,n,d))
+	for n in range(2,10):
+
+		W=W_[n]
+		X=X_[n]
 		Y=canc.apply_alpha(W,X)
-
-		variances.append(jnp.var(Y))
+		variances[n]=jnp.var(Y)
+		range_vars=jnp.array([[k,v] for k,v in variances.items()]).T
+		_range,_vars=range_vars[0],range_vars[1]
+		print(_range)
+		print(_vars)
 
 		plt.figure()
 		plt.yscale('log')
-		plt.plot(range(2,n+1),jnp.array([math.factorial(i) for i in range(2,n+1)]),color='b')
-		plt.plot(range(2,n+1),jnp.array(variances),color='r')
-		plt.scatter(range(2,n+1),jnp.array(variances),color='r')
+		plt.plot(_range,[math.factorial(int(k)) for k in _range],color='b')
+		plt.plot(_range,_vars,color='r')
+		plt.scatter(_range,_vars,color='r')
 		plt.savefig('plots/test_det_'+str(n)+'.pdf')
 
+
+
+
+
+def sample_W_DPP(key,rho,shape,steps=1000):
+
+	(instances,n,d)=shape
+	walkers=instances
+
+	sampler=DPP.Sampler(rho,n,d,walkers,key,1)
+
+	W=sampler.sample(1,steps)
+	return W[0]
+
+
+#def W_DPP_disttribution(n,d):
+#	rho=DPP.Gaussian_kernel_DPP_density(1)
+#	sampler = lambda key,instances : sample_W_DPP(key,rho,shape=(instances,n,d))
+#	return sampler
+#
+#def test_DPP(key):
+#
+#	key,*subkeys=jax.random.split(key,1000)
+#
+#	instances=1000
+#	steps=250
+#	samples=1000
+#	variances={}
+#	#d=3
+#	d=2
+#
+#	n_range=range(1,10)
+#
+#	#rho=DPP.Gaussian_kernel_DPP_density(1)
+#	rho=DPP.circular_harmonics_DPP_density()
+#	W_={n:sample_W_DPP(subkeys[2*n],rho,shape=(instances,n,d),steps=steps) for n in n_range}
+#	X_={n:jax.random.normal(subkeys[2*n+1],shape=(samples,n,d)) for n in n_range}
+#
+#	vars_nonsymmetrized=[jnp.var(canc.apply_tau(W_[n],X_[n])) for n in n_range]
+#	#var_W=[jnp.average(jax.vmap(jnp.sum)(jnp.square(W_[n]))) for n in n_range]
+#
+#	plt.figure()
+#	plt.ylim(bottom=0)
+#	plt.plot(n_range,vars_nonsymmetrized,color='r')
+#	#plt.plot(n_range,var_W,color='r')
+#	#plt.show()
+#	
+#
+#	for n in range(2,10):
+#
+#		W=W_[n]
+#		X=X_[n]
+#		Y=canc.apply_alpha(W,X)
+#		variances[n]=jnp.var(Y)
+#		range_vars=jnp.array([[k,v] for k,v in variances.items()]).T
+#		_range,_vars=range_vars[0],range_vars[1]
+#		print(_range)
+#		print(_vars)
+#
+#		plt.figure()
+#		plt.yscale('log')
+#		plt.plot(_range,[math.factorial(int(k)) for k in _range],color='b')
+#		plt.plot(_range,_vars,color='r')
+#		plt.scatter(_range,_vars,color='r')
+#		plt.savefig('plots/test_det_'+str(n)+'.pdf')
+#
