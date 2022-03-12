@@ -18,7 +18,6 @@ import spherical
 import cancellation as canc
 import antisymmetry.mcmc as mcmc
 import DPP
-import test_cancellation as test
 import opt
 	
 
@@ -48,29 +47,6 @@ def normalize(W):
 	return W/norms_
 	
 
-def gen_W(key,shape,lossfunction=lambda w:1/util.mindist(w)):
-
-	instances,n,d=shape
-	W=normalize(jax.random.normal(key,shape=(1000*instances,n,d)))
-	loss=lossfunction(W)	
-	_,indices=jax.lax.top_k(-loss,instances)
-	return W[indices]
-
-	
-
-def genWXs(instances,samples,n_range,d,key,savename='separated'):
-	key,*subkeys=jax.random.split(key,1000)
-
-	W_={}
-	for n in n_range:
-		if savename=='separated':
-			W_[n]=gen_W(subkeys[2*n],shape=(instances,n,d),lossfunction=util.Coulomb)
-		if savename=='trivial':
-			W_[n]=jax.random.normal(subkeys[2*n],shape=(instances,n,d))/jnp.sqrt(n*d)
-		print(n)
-	X_={n:jax.random.normal(subkeys[2*n+1],shape=(samples,n,d)) for n in n_range}
-	bookkeep.savedata((W_,X_,instances,samples,n_range,d),savename+' d='+str(d))
-
 
 def evalWs(W_,f=util.Coulomb,name=''):
 	plt.figure()
@@ -99,11 +75,11 @@ def evalWs(W_,f=util.Coulomb,name=''):
 
 def test(apply_alpha=canc.apply_alpha,filename='alpha',nmax=0,WXname='WX'):
 
-	squarenorms={}
+	L2={}
 	W_,X_,instances,samples,n_range,d=bookkeep.getdata(WXname)
 
-	squarenorms_nonsymmetrized=[jnp.average(jnp.square(canc.apply_tau(W_[n],X_[n]))) for n in n_range]
-	bookkeep.savedata(squarenorms_nonsymmetrized,'nonsym')
+	L2_nonsymmetrized=[jnp.sqrt(jnp.average(jnp.square(canc.apply_tau(W_[n],X_[n])))) for n in n_range]
+	bookkeep.savedata(L2_nonsymmetrized,'nonsym')
 		
 	if nmax==0:
 		nmax=n_range[-1]
@@ -113,11 +89,11 @@ def test(apply_alpha=canc.apply_alpha,filename='alpha',nmax=0,WXname='WX'):
 		W=W_[n]
 		X=X_[n]
 
-		Y=apply_alpha(W,X)/jnp.sqrt(math.factorial(int(n)))
-		squarenorms[n]=jnp.average(jnp.square(Y))
+		Y=apply_alpha(W,X)
+		L2[n]=jnp.sqrt(jnp.average(jnp.square(Y)))
 
 		fn=filename+'_'+WXname+'_n='+str(n)
-		bookkeep.savedata(squarenorms,fn)
+		bookkeep.savedata(L2,fn)
 		bookkeep.saveplot([fn],fn,colors=['r'])
 
 		print(n)
@@ -128,15 +104,15 @@ def test_2d_harmonic_slater(key,samples):
 
 	n_range=range(1,12)
 	X_={n:jax.random.normal(subkeys[2*n+1],shape=(samples,n,2)) for n in n_range}
-	squarenorms={}
+	L2={}
 
 	h={n:harmonics_2d(X_[n]) for n in n_range}
 
 	h_to_prod=lambda h: jnp.product(jnp.diagonal(h,axis1=-2,axis2=-1),axis=-1)
-	nonsym={n:jnp.average(jnp.square(h_to_prod(h[n]))) for n in n_range}
+	nonsym={n:jnp.sqrt(jnp.average(jnp.square(h_to_prod(h[n])))) for n in n_range}
 	bookkeep.savedata(nonsym,'2dharmonicprod')
 
-	_det={n:jnp.average(jnp.square(jnp.linalg.det(h[n])/jnp.sqrt(math.factorial(n)))) for n in n_range}
+	_det={n:jnp.sqrt(jnp.average(jnp.square(jnp.linalg.det(h[n])/jnp.sqrt(math.factorial(n))))) for n in n_range}
 	bookkeep.savedata(_det,'2dharmonicdet')
 
 
@@ -151,4 +127,10 @@ def harmonics_2d(X):
 	return h
 	
 
-
+def polynomialerror(f,deg,n_mu,fname=''):
+	errors=[]
+	for i in range(len(deg)):
+		x=util.sample_mu(n_mu[i],10000,key)
+		err=util.bestpolyfit(f,deg[i],x)[0]
+		errors.append(err)
+	return jnp.array(errors)

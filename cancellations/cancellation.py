@@ -61,11 +61,12 @@ def apply_alpha(W,X,activation=ReLU):
 def antisymmetrize(f):
 	def antisymmetric(X):
 		y=jnp.zeros(f(X).shape)
-		for P in itertools.permutations(jnp.identity(X.shape[-2])):
+		n=X.shape[-2]
+		for P in itertools.permutations(jnp.identity(n)):
 			sign=jnp.linalg.det(P)
 			PX=jnp.swapaxes(jnp.dot(jnp.array(P),X),0,-2)
 			y+=sign*f(PX)
-		return y
+		return y/jnp.sqrt(math.factorial(n))
 	return antisymmetric
 	
 

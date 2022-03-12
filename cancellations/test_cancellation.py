@@ -235,7 +235,7 @@ def plots():
 
 		plt.figure()
 		plt.yscale('log')
-		plt.plot(range(2,n+1),jnp.array([math.factorial(i) for i in range(2,n+1)]),color='b')
+		#plt.plot(range(2,n+1),jnp.array([math.factorial(i) for i in range(2,n+1)]),color='b')
 		for d in ds:
 			plt.plot(range(2,n+1),jnp.array(variances[d]),color='r')
 			plt.scatter(range(2,n+1),jnp.array(variances[d]),color='r')
@@ -299,7 +299,7 @@ def test(gen_W,key):
 
 		plt.figure()
 		plt.yscale('log')
-		plt.plot(_range,[math.factorial(int(k)) for k in _range],color='b')
+		#plt.plot(_range,[math.factorial(int(k)) for k in _range],color='b')
 		plt.plot(_range,_vars,color='r')
 		plt.scatter(_range,_vars,color='r')
 		plt.savefig('plots/test_det_'+str(n)+'.pdf')

@@ -16,6 +16,7 @@ import cancellation as canc
 import DPP
 	
 
+pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
 
 def flatten_nd(x):
 	s=x.shape
@@ -27,6 +28,105 @@ def separate_n_d(x,n,d):
 	newshape=s[:-1]+(n,d)
 	return jnp.reshape(x,newshape)
 	
+
+def pairwisediffs(X):
+	n=X.shape[-2]
+	stacked_x_1=jnp.repeat(jnp.expand_dims(X,-2),n,axis=-2)
+	stacked_x_2=jnp.swapaxes(stacked_x_1,-2,-3)
+	return stacked_x_1-stacked_x_2
+
+def pairwisedists(X):
+	return jnp.sum(jnp.square(pairwisediffs(X)),axis=-1)
+
+
+
+def Coulomb(X):
+	energies=jnp.triu(1/pairwisedists(X),k=1)
+	return jnp.sum(energies,axis=(-2,-1))
+
+
+def mindist(X):
+	energies=jnp.triu(1/pairwisedists(X),k=1)
+	return 1/jnp.max(energies,axis=(-2,-1))
+	
+
+
+def sample_mu(n,samples,key):
+	Z=jax.random.normal(key,shape=(samples,n,2))
+	P=jnp.squeeze(jnp.product(Z,axis=-1))
+	return jnp.sum(P,axis=-1)/jnp.sqrt(n)
+
+
+
+
+def bestpolyfit(f,deg,x):
+	y=f(x)
+	a=np.polyfit(x,y,deg)
+	p=evalpoly(a,x)
+	error=jnp.sqrt(jnp.average(jnp.square(p-y)))
+	return error,a,p
+
+def evalpoly(a,x):
+	xk=jnp.ones(len(x))
+	y=jnp.zeros(len(x))
+	deg=len(a)-1
+	for i in range(deg+1):
+		y=y+a[deg-i]*xk
+		xk=jnp.multiply(xk,x)
+	return y
+		
+		
+	
+
+def compare(x,y):
+	rel_err=jnp.linalg.norm(y-x,axis=-1)/jnp.linalg.norm(x,axis=-1)
+	print('maximum relative error')
+	print(jnp.max(rel_err))
+	print()
+
+
+
+
+
+
+
+"""
+def savedata(data,filename):
+        filename='data/'+filename
+        with open(filename,'wb') as file:
+                pickle.dump(data,file)
+
+def getdata(filename):
+	with open('data/'+filename,"rb") as file:
+		data=pickle.load(file)
+	return data
+
+def rangevals(_dict_):
+	range_vals=jnp.array([[k,v] for k,v in _dict_.items()]).T
+	return range_vals[0],range_vals[1]
+
+def saveplot(datanames,savename):
+	plt.figure()
+	plt.yscale('log')
+	for filename in datanames:
+		data=getdata(filename)
+		plot_dict(data)
+	plt.savefig('plots/'+savename+'.pdf')
+			
+def plot_dict(_dict_):
+	_range,sqnorms=rangevals(_dict_)
+	plt.scatter(_range,sqnorms,color='r')
+	plt.plot(_range,sqnorms,color='r')
+
+
+
+
+
+def intersect(x,y):
+	return range(max(x[0],y[0]),min(x[-1],y[-1])+1)
+
+"""
+
 
 
 #def L2(functions,X_dist,X_density,n_samples,key):
@@ -53,10 +153,9 @@ def separate_n_d(x,n,d):
 #	np.testing.assert_allclose(l2,jnp.ones(n_centers),rtol=.01)
 
 
-pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
 
 
-
+"""
 def estimate_var(f,X_distribution,n_samples,key):
 
 	X=X_distribution(key,n_samples)
@@ -110,78 +209,5 @@ def lipschitz(f,Xdist,samples,eps,key):
 
 	dY=f(X1)-f(X0)
 	return jnp.max(jnp.abs(dY)/eps)
-
-
-def pairwisediffs(X):
-	n=X.shape[-2]
-	stacked_x_1=jnp.repeat(jnp.expand_dims(X,-2),n,axis=-2)
-	stacked_x_2=jnp.swapaxes(stacked_x_1,-2,-3)
-	return stacked_x_1-stacked_x_2
-
-def pairwisedists(X):
-	return jnp.sum(jnp.square(pairwisediffs(X)),axis=-1)
-
-
-
-def Coulomb(X):
-	energies=jnp.triu(1/pairwisedists(X),k=1)
-	return jnp.sum(energies,axis=(-2,-1))
-
-
-def mindist(X):
-	energies=jnp.triu(1/pairwisedists(X),k=1)
-	return 1/jnp.max(energies,axis=(-2,-1))
-	
-
-
-
-def savedata(data,filename):
-        filename='data/'+filename
-        with open(filename,'wb') as file:
-                pickle.dump(data,file)
-
-def getdata(filename):
-	with open('data/'+filename,"rb") as file:
-		data=pickle.load(file)
-	return data
-
-def rangevals(_dict_):
-	range_vals=jnp.array([[k,v] for k,v in _dict_.items()]).T
-	return range_vals[0],range_vals[1]
-
-def saveplot(datanames,savename):
-	plt.figure()
-	plt.yscale('log')
-	for filename in datanames:
-		data=getdata(filename)
-		plot_dict(data)
-	plt.savefig('plots/'+savename+'.pdf')
-			
-def plot_dict(_dict_):
-	_range,sqnorms=rangevals(_dict_)
-	plt.scatter(_range,sqnorms,color='r')
-	plt.plot(_range,sqnorms,color='r')
-
-
-
-"""
-def plot(x,y):
-	plt.figure()
-	plt.yscale('log')
-	plt.plot(x,y,color='b')
-	plt.scatter(x,y,color='r')
-	plt.show()
 """
 
-
-def intersect(x,y):
-	return range(max(x[0],y[0]),min(x[-1],y[-1])+1)
-
-
-
-
-def compare(x,y):
-	rel_err=jnp.linalg.norm(y-x,axis=-1)/jnp.linalg.norm(x,axis=-1)
-	print('maximum relative error')
-	print(jnp.max(rel_err))
-	print()
