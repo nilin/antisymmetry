@@ -50,6 +50,59 @@ def mindist(X):
 	return 1/jnp.max(energies,axis=(-2,-1))
 	
 
+def argmindist(X):
+	energies=jnp.triu(1/pairwisedists(X),k=1)
+	n=energies.shape[-2]
+	E=jnp.reshape(energies,energies.shape[:-2]+[n**2])
+	ijflat=jnp.argmax(E,axis=-1)
+	i,j=ijflat//n,ijflat%n
+	ij=jnp.moveaxis(jnp.array([i,j]),0,-1)
+	return ij
+
+"""
+def transpositionmatrices(ijs,n):
+	def createsinglematrix(ij):
+		i,j=ij[0],ij[1]
+		permutation=list(jnp.arange(n))
+		permutation[i],permuation[j]=j,i
+		I=jnp.eye(n)
+		return I[permutation]
+	return jax.vmap(createsinglematrix)(ijs)
+"""	
+
+def transposition(x,ij):
+	n=X.shape[-2]
+	i,j=ij[0],ij[1]
+	permutation=list(jnp.arange(n))
+	permutation[i],permuation[j]=j,i
+	return x[permutation]
+	
+	
+def transpositions(X,ijs):
+	return mapbinary(transposition,X,ijs)
+	
+
+def mapbinary(f,A,B):
+	a_shape=A.shape[1:]
+	b_shape=B.shape[1:]
+	a_size=int(jnp.product(jnp.array(a_shape)))
+	b_size=int(jnp.product(jnp.array(b_shape)))
+	
+	def f_flat(ab):
+		a=ab[:a_size]
+		b=ab[a_size:]
+		jnp.reshape(a,a_shape)
+		jnp.reshape(b,b_shape)
+		return f(a,b)
+	
+	def flatten(A,B):
+		A_flats=jax.vmap(jnp.ravel)(A)
+		B_flats=jax.vmap(jnp.ravel)(B)
+		return jnp.concatenate([A_flats,B_flats],axis=-1)
+
+	return jax.vmap(f)(flatten(A,B))
+
+
 
 def sample_mu(n,samples,key):
 	Z=jax.random.normal(key,shape=(samples,n,2))

@@ -17,15 +17,29 @@ import optax
 import cancellation as canc
 import antisymmetry.mcmc as mcmc
 import spherical
+import bookkeep
 
 
 
 key=jax.random.PRNGKey(0)
 
+W_,X_,instances,samples,n_range,d=bookkeep.getdata('trivial d=3')
 
-for n in range(10):
-	x=util.sample_mu(n,100000,key)
+for n in [2]:
+	x=util.sample_mu(n*d,100000,key)
 
+	W=W_[n]
+	X=X_[n]
+	Y=jnp.ravel(canc.apply_tau_(W,X,lambda x:x))
+
+	print(x)
+	print(Y)
+	
+	plt.figure()
+	sns.kdeplot(x,bw=.1)
+	sns.kdeplot(Y,bw=.1)
+	plt.show()
+	
 	print(jnp.average(x))
 	print(jnp.var(x))
 	print()
