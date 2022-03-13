@@ -42,8 +42,9 @@ envelope_FN=envelope
 
 
 
-apply_tau=lambda W,X:ReLU(jnp.matmul(jax.lax.collapse(W,1,3),jax.lax.collapse(X,1,3).T))
-apply_tau_=lambda W,X,activation:activation(jnp.matmul(util.flatten_nd(W),util.flatten_nd(X).T))
+#apply_tau=lambda W,X:ReLU(jnp.matmul(jax.lax.collapse(W,1,3),jax.lax.collapse(X,1,3).T))
+apply_tau_=lambda W,X,activation=ReLU:activation(jnp.matmul(util.flatten_nd(W),util.flatten_nd(X).T))
+apply_tau=apply_tau_
 
 def w_to_alpha(W,activation):
 	F=lambda X:apply_tau_(W,X,activation)

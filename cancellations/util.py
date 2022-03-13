@@ -17,6 +17,7 @@ import DPP
 	
 
 pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
+ReLU=lambda x:(jnp.abs(x)+x)/2
 
 def flatten_nd(x):
 	s=x.shape
@@ -36,7 +37,7 @@ def pairwisediffs(X):
 	return stacked_x_1-stacked_x_2
 
 def pairwisedists(X):
-	return jnp.sum(jnp.square(pairwisediffs(X)),axis=-1)
+	return jnp.sqrt(jnp.sum(jnp.square(pairwisediffs(X)),axis=-1))
 
 
 
@@ -53,7 +54,7 @@ def mindist(X):
 def argmindist(X):
 	energies=jnp.triu(1/pairwisedists(X),k=1)
 	n=energies.shape[-2]
-	E=jnp.reshape(energies,energies.shape[:-2]+[n**2])
+	E=jnp.reshape(energies,energies.shape[:-2]+(n**2,))
 	ijflat=jnp.argmax(E,axis=-1)
 	i,j=ijflat//n,ijflat%n
 	ij=jnp.moveaxis(jnp.array([i,j]),0,-1)
@@ -71,15 +72,22 @@ def transpositionmatrices(ijs,n):
 """	
 
 def transposition(x,ij):
-	n=X.shape[-2]
+	n=x.shape[-2]
+	ij=ij.astype(int)
 	i,j=ij[0],ij[1]
-	permutation=list(jnp.arange(n))
-	permutation[i],permuation[j]=j,i
-	return x[permutation]
+	permutation=list(range(n))
+	permutation[i],permutation[j]=j,i
+	return jnp.take(x,jnp.array(permutation,int),axis=-2)
 	
 	
 def transpositions(X,ijs):
 	return mapbinary(transposition,X,ijs)
+
+def transpositions_simple(X,ijs):
+	instances=X.shape[0]
+	return jnp.array([transposition(X[k],ijs[k]) for k in range(instances)])
+
+transpositions=transpositions_simple
 	
 
 def mapbinary(f,A,B):
@@ -89,18 +97,19 @@ def mapbinary(f,A,B):
 	b_size=int(jnp.product(jnp.array(b_shape)))
 	
 	def f_flat(ab):
-		a=ab[:a_size]
-		b=ab[a_size:]
-		jnp.reshape(a,a_shape)
-		jnp.reshape(b,b_shape)
+		a_=ab[:a_size]
+		b_=ab[a_size:]
+		a=jnp.reshape(a_,a_shape)
+		b=jnp.reshape(b_,b_shape)
 		return f(a,b)
 	
 	def flatten(A,B):
 		A_flats=jax.vmap(jnp.ravel)(A)
 		B_flats=jax.vmap(jnp.ravel)(B)
-		return jnp.concatenate([A_flats,B_flats],axis=-1)
+		AB_flats=jnp.concatenate([A_flats,B_flats],axis=-1)
+		return AB_flats
 
-	return jax.vmap(f)(flatten(A,B))
+	return jax.vmap(f_flat)(flatten(A,B))
 
 
 
@@ -111,6 +120,11 @@ def sample_mu(n,samples,key):
 
 
 
+
+
+def bestpolyfunctionfit(f,deg,x):
+	a=np.polyfit(x,f(x),deg)
+	return poly_as_function(a)
 
 def bestpolyfit(f,deg,x):
 	y=f(x)
@@ -128,7 +142,9 @@ def evalpoly(a,x):
 		xk=jnp.multiply(xk,x)
 	return y
 		
-		
+def poly_as_function(a):
+	f=lambda x:evalpoly(a,x)
+	return f
 	
 
 def compare(x,y):
@@ -219,7 +235,6 @@ def estimate_var(f,X_distribution,n_samples,key):
 	validate(Y)
 
 	return variance,Y
-
 
 
 

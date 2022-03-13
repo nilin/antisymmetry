@@ -55,9 +55,7 @@ def dT_test(W,X,apply_tau):
 def dT_vs_AT(W,X,apply_tau,apply_alpha):
 	dT_by_w=dT_test(W,X,apply_tau)
 	AT_by_w=jnp.sqrt(jnp.average(jnp.square(apply_alpha(W,X)),axis=-1))
-	plt.figure()
-	plt.scatter(dT_by_w,AT_by_w)
-	plt.show()
+	plt.scatter(dT_by_w,AT_by_w,s=.2)
 
 def test(apply_tau=canc.apply_tau,nmax=0,WXname='trivial d=3'):
 
@@ -81,7 +79,60 @@ def test(apply_tau=canc.apply_tau,nmax=0,WXname='trivial d=3'):
 
 		print(n)
 
+def plot_dT_AT():
+	WXname='trivial d=3'
+	W_,X_,instances,samples,n_range,d=bookkeep.getdata(WXname)
+	activation=util.ReLU
+	plt.figure()
+	for n in range(5,8):
+		x=jnp.sort(util.sample_mu(n*d,5000,keys[n]))
+		p=util.bestpolyfunctionfit(activation,n-2,x)
+		remainder=lambda x:activation(x)-p(x)
+		#plt.plot(x,remainder(x))
+		apply_remainder=lambda W,X:canc.apply_tau_(W,X,remainder)
+		apply_alpha=lambda W,X:canc.apply_alpha(W,X,activation)
+		dT_vs_AT(W_[n],X_[n],apply_remainder,apply_alpha)
+	plt.show()
 
-WXname='trivial d=3'
-W_,X_,instances,samples,n_range,d=bookkeep.getdata(WXname)
-dT_vs_AT(W_[4],X_[4],canc.apply_tau,canc.apply_alpha)
+
+def plot_dT_approx():
+	WXname='trivial d=3'
+	W_,X_,instances,samples,n_range,d=bookkeep.getdata(WXname)
+	activation=util.ReLU
+	plt.figure()
+	for n in range(5,8):
+		W=W_[n]
+		X=X_[n]
+		f=util.ReLU
+
+		lengths=jnp.sqrt(jnp.sum(jnp.square(W),axis=(-2,-1)))
+		ds=util.mindist(W)
+
+		instances=W.shape[0]
+		samples=1000
+
+		scales1=jnp.repeat(jnp.expand_dims(lengths,axis=1),samples,axis=1)
+		scales2=jnp.sqrt(2)*jnp.repeat(jnp.expand_dims(ds,axis=1),samples,axis=1)
+
+		Z=jnp.multiply(jax.random.normal(keys[2*n],shape=(instances,samples)),scales1)
+		Z_=jnp.multiply(jax.random.normal(keys[2*n+1],shape=(instances,samples)),scales2)
+
+		approx=jnp.sqrt(jnp.average(jnp.square(f(Z)-f(Z+Z_)),axis=-1))
+		
+
+		apply_tau=lambda W,X:canc.apply_tau(W,X,f)
+		dT_by_w=dT_test(W,X,apply_tau)
+
+		plt.scatter(dT_by_w,approx,s=.3)
+		
+
+		#x=jnp.sort(util.sample_mu(n*d,5000,keys[n]))
+		#p=util.bestpolyfunctionfit(activation,n-2,x)
+		#remainder=lambda x:activation(x)-p(x)
+		##plt.plot(x,remainder(x))
+		#apply_remainder=lambda W,X:canc.apply_tau_(W,X,remainder)
+		#apply_tau=apply_remainder
+		#dT_by_w=dT_test(W,X,apply_tau)
+	plt.show()
+
+plot_dT_approx()
