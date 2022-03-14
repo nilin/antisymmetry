@@ -32,6 +32,15 @@ def rangevals(_dict_):
 	range_vals=jnp.array([[k,v] for k,v in _dict_.items()]).T
 	return range_vals[0],range_vals[1]
 
+
+def getplotdata(filename):
+	data=getdata(filename)
+	if type(data) is dict:
+		return rangevals(data)
+	else:
+		return data[0],jnp.array(data[1])
+
+
 def plot_dict(_dict_,connect,scatter,color='r'):
 	_range,vals=rangevals(_dict_)
 	print('['+str(jnp.min(vals))+','+str(jnp.max(vals))+']')

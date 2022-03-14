@@ -17,7 +17,20 @@ import DPP
 	
 
 pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
+
+
 ReLU=lambda x:(jnp.abs(x)+x)/2
+#DReLU=lambda x:jnp.min(ReLU(x),1)
+DReLU=lambda x:(jnp.abs(x+1)-jnp.abs(x-1))/2
+heaviside=lambda x:jnp.heaviside(x,1)
+osc=lambda x:jnp.sin(100*x)
+
+activations={'osc':osc,'HS':heaviside,'ReLU':ReLU,'exp':jnp.exp,'tanh':jnp.tanh,'DReLU':DReLU}
+
+
+L2norm=lambda y:jnp.sqrt(jnp.average(jnp.square(y)))
+L2over=lambda y,**kwargs:jnp.sqrt(jnp.average(jnp.square(y),kwargs))
+
 
 def flatten_nd(x):
 	s=x.shape
@@ -36,10 +49,11 @@ def pairwisediffs(X):
 	stacked_x_2=jnp.swapaxes(stacked_x_1,-2,-3)
 	return stacked_x_1-stacked_x_2
 
+def pairwisesquaredists(X):
+	return jnp.sum(jnp.square(pairwisediffs(X)),axis=-1)
+
 def pairwisedists(X):
-	return jnp.sqrt(jnp.sum(jnp.square(pairwisediffs(X)),axis=-1))
-
-
+	return jnp.sqrt(pairwisesquaredists(X))
 
 def Coulomb(X):
 	energies=jnp.triu(1/pairwisedists(X),k=1)
@@ -60,17 +74,6 @@ def argmindist(X):
 	ij=jnp.moveaxis(jnp.array([i,j]),0,-1)
 	return ij
 
-"""
-def transpositionmatrices(ijs,n):
-	def createsinglematrix(ij):
-		i,j=ij[0],ij[1]
-		permutation=list(jnp.arange(n))
-		permutation[i],permuation[j]=j,i
-		I=jnp.eye(n)
-		return I[permutation]
-	return jax.vmap(createsinglematrix)(ijs)
-"""	
-
 def transposition(x,ij):
 	n=x.shape[-2]
 	ij=ij.astype(int)
@@ -81,35 +84,7 @@ def transposition(x,ij):
 	
 	
 def transpositions(X,ijs):
-	return mapbinary(transposition,X,ijs)
-
-def transpositions_simple(X,ijs):
-	instances=X.shape[0]
-	return jnp.array([transposition(X[k],ijs[k]) for k in range(instances)])
-
-transpositions=transpositions_simple
-	
-
-def mapbinary(f,A,B):
-	a_shape=A.shape[1:]
-	b_shape=B.shape[1:]
-	a_size=int(jnp.product(jnp.array(a_shape)))
-	b_size=int(jnp.product(jnp.array(b_shape)))
-	
-	def f_flat(ab):
-		a_=ab[:a_size]
-		b_=ab[a_size:]
-		a=jnp.reshape(a_,a_shape)
-		b=jnp.reshape(b_,b_shape)
-		return f(a,b)
-	
-	def flatten(A,B):
-		A_flats=jax.vmap(jnp.ravel)(A)
-		B_flats=jax.vmap(jnp.ravel)(B)
-		AB_flats=jnp.concatenate([A_flats,B_flats],axis=-1)
-		return AB_flats
-
-	return jax.vmap(f_flat)(flatten(A,B))
+	return jax.vmap(transposition,in_axes=(0,0))(X,ijs)
 
 
 
@@ -119,8 +94,34 @@ def sample_mu(n,samples,key):
 	return jnp.sum(P,axis=-1)/jnp.sqrt(n)
 
 
+def variations(key,f,marginal_var,diff_var,samples=1000):
+	key1,key2=jax.random.split(key)
+	r_=jnp.sqrt(marginal_var-diff_var/4)
+	eps=jnp.sqrt(diff_var)
+	instances=r_.size
+	Z=jax.vmap(jnp.multiply,in_axes=(0,0))(jax.random.normal(key1,shape=(instances,samples)),r_)
+	Z_=jax.vmap(jnp.multiply,in_axes=(0,0))(jax.random.normal(key2,shape=(instances,samples)),eps)
 
+	Y1=Z-Z_/2
+	Y2=Z+Z_/2
 
+	return jnp.average(jnp.square(f(Y2)-f(Y1)),axis=-1)
+"""
+def _variations(key,f,marginal_var,diff_var,samples=1000):
+	key1,key2=jax.random.split(key)
+	r=jnp.sqrt(marginal_var-diff_var/4)
+	eps=jnp.sqrt(diff_var)
+	scales1=jnp.repeat(jnp.expand_dims(r,axis=1),samples,axis=1)
+	scales2=jnp.repeat(jnp.expand_dims(eps,axis=1),samples,axis=1)
+	instances=r.size
+	Z=jnp.multiply(jax.random.normal(key1,shape=(instances,samples)),scales1)
+	Z_=jnp.multiply(jax.random.normal(key2,shape=(instances,samples)),scales2)
+
+	Y1=Z-Z_/2
+	Y2=Z+Z_/2
+
+	return jnp.average(jnp.square(f(Y2)-f(Y1)),axis=-1)
+"""
 
 def bestpolyfunctionfit(f,deg,x):
 	a=np.polyfit(x,f(x),deg)
@@ -155,6 +156,9 @@ def compare(x,y):
 
 
 
+def normalize(W):
+	norms=jnp.sqrt(jnp.sum(jnp.square(W),axis=(-2,-1)))
+	return jax.vmap(jnp.multiply,in_axes=(0,0))(W,1/norms)
 
 
 

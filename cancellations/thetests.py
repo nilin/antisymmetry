@@ -18,7 +18,6 @@ import spherical
 import cancellation as canc
 import antisymmetry.mcmc as mcmc
 import DPP
-import opt
 	
 
 
@@ -41,10 +40,6 @@ energy=lambda W:jnp.sum(energies(W))
 
 
 
-def normalize(W):
-	norms=jnp.sqrt(jnp.sum(jnp.square(W),axis=(-2,-1)))
-	norms_=jnp.tile(jnp.expand_dims(norms,axis=(1,2)),W.shape[-2:])
-	return W/norms_
 	
 
 

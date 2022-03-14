@@ -13,13 +13,19 @@ import copy
 import util
 import jax
 import jax.numpy as jnp
+import bookkeep
 import optax
 
 
 
+def softCoulomb(X):
+	eps=.001
+	dists=jnp.sqrt(util.pairwisesquaredists(X)+eps)
+	energies=jnp.triu(1/dists,k=1)
+	return jnp.sum(energies,axis=(-2,-1))
 
 
-energies=lambda W:util.Coulomb(W)+jnp.sum(jnp.square(W),axis=(-2,-1))
+energies=lambda W:softCoulomb(W)+jnp.sum(jnp.square(W),axis=(-2,-1))
 energy=lambda W:jnp.sum(energies(W))
 
 
@@ -28,7 +34,8 @@ def gen_W(key,shape):
 	
 	instances,n,d=shape
 	W=jax.random.normal(key,shape=shape)/jnp.sqrt(n*d)
-	W=separate(W,1000)
+	W=separate(W,500)
+	W=util.normalize(W)
 	return W
 
 
@@ -51,29 +58,28 @@ def separate(W,iterations,optimizer=optax.rmsprop(.01),smoothingperiod=25):
 		losses.append(loss)
 		smoothedlosses.append(loss_estimate)
 
-#		print(energy(W))
-#		print(W)
-#		print(grads)
-
 		updates,_=optimizer.update(grads,state,W)
-		#W=optax.apply_updates(W,updates)
-		W=W-.01*grads
+		W=optax.apply_updates(W,updates)
+		#W=W-.1*grads
+	
+		printbar(loss_estimate,i,smoothedlosses[0])
 
 
-		if i>smoothingperiod and smoothedlosses[-1]>1.05*smoothedlosses[-smoothingperiod]:
-			print('\nConverged after '+str(i)+' batches')
-			break
-
-	#return W,losses,smoothedlosses
 	return W
 
-
-def printbar(loss_estimate,i):
+def printbar(loss_estimate,i,scale=1):
 	barlength=100;
-	roundloss=round(loss_estimate*1000)/1000
-	print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(loss_estimate,1)))*'\u2588'+(barlength-round(barlength*loss_estimate))*'_'+'] '+str(roundloss),end='\r')
+	roundloss=round(loss_estimate*1000/scale)/1000
+	print((7-len(str(i)))*' '+str(i)+' batches done. Loss: ['+(round(barlength*min(roundloss,1)))*'\u2588'+(barlength-round(barlength*roundloss))*'_'+'] '+str(roundloss),end='\r')
 
 
+key=jax.random.PRNGKey(0)
+
+d=3
+W_={}
+for n in range(2,10):
+	W_[n]=gen_W(key,(5000,n,d))
+bookkeep.savedata(W_,'W separated')
 
 
 """	
