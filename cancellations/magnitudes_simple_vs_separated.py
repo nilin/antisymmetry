@@ -27,17 +27,18 @@ import thetests as test
 
 
 
-#activations={'osc':util.osc,'exp':jnp.exp,'ReLU':util.ReLU,'HS':util.heaviside}
-activations=util.activations
 
 colors={'trivial':'b','separated':'r'}
 
-for ac_name,activation in activations.items():
+for ac_name,activation in util.activations.items():
 	plt.figure()
 	plt.yscale('log')
 
 	for WXname in ['trivial','separated']:
 		range1,var=bk.getplotdata(WXname+' '+ac_name)
+		print(ac_name)
+		print(WXname)
+		print(var)
 		range2,delta=bk.getplotdata(WXname+' delta')
 		plt.plot(range1,var,colors[WXname]+'o-')
 		plt.plot(range2,delta,colors[WXname]+':')

@@ -40,16 +40,17 @@ def getWX(Wname):
 
 def gen_magnitudes(Wname,activation):
 	W_,X_,n_range=getWX(Wname)
-	var=[]
+	dev=[]
 	delta=[]
 	n_range=range(2,9)
 	for n in n_range:
 		print(n)
 		W=W_[n]
 		X=X_[n]
-		var.append(util.L2norm(canc.apply_alpha(W,X,activation)))
+		dev.append(util.L2norm(canc.apply_alpha(W,X,activation)))
+		print(dev[-1])
 		delta.append(util.L2norm(util.mindist(W)))
-	return n_range,var
+	return n_range,dev
 
 def gen_dists(Wname):
 	W_,X_,n_range=getWX(Wname)
@@ -62,10 +63,12 @@ def gen_dists(Wname):
 	return n_range,delta
 		
 
-for Wname in ['trivial','separated']:
+for Wname in ['separated','trivial']:
 	bk.savedata(gen_dists(Wname),Wname+' delta')
 
 	for ac_name,activation in activations.items():
 		
 		print('W:'+Wname+', activation:'+ac_name)
-		bk.savedata(gen_magnitudes(Wname,activation),Wname+' '+ac_name)
+		rangedev=gen_magnitudes(Wname,activation)
+		print(rangedev)
+		bk.savedata(rangedev,Wname+' '+ac_name)

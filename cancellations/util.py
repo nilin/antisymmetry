@@ -94,7 +94,7 @@ def sample_mu(n,samples,key):
 	return jnp.sum(P,axis=-1)/jnp.sqrt(n)
 
 
-def variations(key,f,marginal_var,diff_var,samples=1000):
+def correlated_X_pairs(key,marginal_var,diff_var,samples=250):
 	key1,key2=jax.random.split(key)
 	r_=jnp.sqrt(marginal_var-diff_var/4)
 	eps=jnp.sqrt(diff_var)
@@ -102,51 +102,92 @@ def variations(key,f,marginal_var,diff_var,samples=1000):
 	Z=jax.vmap(jnp.multiply,in_axes=(0,0))(jax.random.normal(key1,shape=(instances,samples)),r_)
 	Z_=jax.vmap(jnp.multiply,in_axes=(0,0))(jax.random.normal(key2,shape=(instances,samples)),eps)
 
-	Y1=Z-Z_/2
-	Y2=Z+Z_/2
-
-	return jnp.average(jnp.square(f(Y2)-f(Y1)),axis=-1)
-"""
-def _variations(key,f,marginal_var,diff_var,samples=1000):
-	key1,key2=jax.random.split(key)
-	r=jnp.sqrt(marginal_var-diff_var/4)
-	eps=jnp.sqrt(diff_var)
-	scales1=jnp.repeat(jnp.expand_dims(r,axis=1),samples,axis=1)
-	scales2=jnp.repeat(jnp.expand_dims(eps,axis=1),samples,axis=1)
-	instances=r.size
-	Z=jnp.multiply(jax.random.normal(key1,shape=(instances,samples)),scales1)
-	Z_=jnp.multiply(jax.random.normal(key2,shape=(instances,samples)),scales2)
-
-	Y1=Z-Z_/2
-	Y2=Z+Z_/2
-
-	return jnp.average(jnp.square(f(Y2)-f(Y1)),axis=-1)
-"""
-
-def bestpolyfunctionfit(f,deg,x):
-	a=np.polyfit(x,f(x),deg)
-	return poly_as_function(a)
-
-def bestpolyfit(f,deg,x):
-	y=f(x)
-	a=np.polyfit(x,y,deg)
-	p=evalpoly(a,x)
-	error=jnp.sqrt(jnp.average(jnp.square(p-y)))
-	return error,a,p
-
-def evalpoly(a,x):
-	xk=jnp.ones(len(x))
-	y=jnp.zeros(len(x))
-	deg=len(a)-1
-	for i in range(deg+1):
-		y=y+a[deg-i]*xk
-		xk=jnp.multiply(xk,x)
-	return y
-		
-def poly_as_function(a):
-	f=lambda x:evalpoly(a,x)
-	return f
+	X1=Z-Z_/2
+	X2=Z+Z_/2
+	return X1,X2
 	
+
+def variations(key,f,marginal_var,diff_var):
+	X1,X2=correlated_X_pairs(key,marginal_var,diff_var)
+	return jnp.average(jnp.square(f(X2)-f(X1)),axis=-1)/2
+
+
+def fit_variations(key,f,functions,marginal_var,diff_var):
+	X1,X2=correlated_X_pairs(key,marginal_var,diff_var)
+	ydiffs=(f(X2)-f(X1))/jnp.sqrt(2)
+	basisdiffs=(functions(X2)-functions(X1))/jnp.sqrt(2)
+	return jax.vmap(basisfit,in_axes=(0,0),out_axes=(0,0))(ydiffs,basisdiffs) 
+	
+def poly_fit_variations(key,f,deg,marginal_var,diff_var):
+	functions=monomials(deg)
+	return fit_variations(key,f,functions,marginal_var,diff_var)
+
+
+def as_function(a,functions):
+	def function(x):
+		return jnp.tensordot(functions(x),a,axes=(-1,-1))
+	return function
+
+def as_parallel_functions(a,functionbasis):
+	def functions(x):
+		Y=functionbasis(x)
+		out=jax.vmap(jnp.dot,in_axes=(0,0),out_axes=0)(Y,a)
+#		print(Y)
+#		print(a)
+#		print('out')
+#		print(out)
+		return out
+	return functions
+
+def poly_as_function(a):
+	return as_function(a,monomials(a.shape[-1]-1))
+
+def polys_as_parallel_functions(a):
+	return as_parallel_functions(a,monomials(a.shape[-1]-1))
+	
+####################################################################################################
+
+
+def monomials(deg,kmin=0):
+	def functions(x):
+		y=jnp.ones(x.shape)
+		vals=[]
+		for k in range(kmin,deg+1):
+			vals.append(jnp.expand_dims(y,axis=-1))
+			y=jnp.multiply(x,y)
+		return jnp.concatenate(vals,axis=-1)
+	return functions
+
+
+def basisfit(y,Y):
+	Q,R=jnp.linalg.qr(Y)
+	Py=jnp.dot(Q.T,y)
+	#a=jnp.linalg.multi_dot([jnp.linalg.inv(R),Q.T,y])
+	a=jnp.dot(jnp.linalg.inv(R),Py)
+	dist=L2norm(y-jnp.dot(Q,Py))
+	return a,dist
+
+def functionfit(x,y,functions):
+	#Y=jax.vmap(functions,out_axes=0)(x)
+	Y=functions(x)
+	return basisfit(y,Y)
+
+def functionlistfit(x,y,functionlist):
+	return functionfit(x,y,prepfunctions(functionlist))
+	
+	
+def polyfit(x,y,deg):
+	return functionfit(x,y,monomials(deg))
+
+def prepfunctions(functionblocklist,functionlist):
+	def functions(x):
+		return jnp.concatenate([f(x) for f in functionblocklist]+[jnp.expand_dims(f(x),axis=-1) for f in functionlist], axis=-1)
+	return functions
+
+
+
+####################################################################################################
+
 
 def compare(x,y):
 	rel_err=jnp.linalg.norm(y-x,axis=-1)/jnp.linalg.norm(x,axis=-1)
@@ -161,125 +202,4 @@ def normalize(W):
 	return jax.vmap(jnp.multiply,in_axes=(0,0))(W,1/norms)
 
 
-
-
-"""
-def savedata(data,filename):
-        filename='data/'+filename
-        with open(filename,'wb') as file:
-                pickle.dump(data,file)
-
-def getdata(filename):
-	with open('data/'+filename,"rb") as file:
-		data=pickle.load(file)
-	return data
-
-def rangevals(_dict_):
-	range_vals=jnp.array([[k,v] for k,v in _dict_.items()]).T
-	return range_vals[0],range_vals[1]
-
-def saveplot(datanames,savename):
-	plt.figure()
-	plt.yscale('log')
-	for filename in datanames:
-		data=getdata(filename)
-		plot_dict(data)
-	plt.savefig('plots/'+savename+'.pdf')
-			
-def plot_dict(_dict_):
-	_range,sqnorms=rangevals(_dict_)
-	plt.scatter(_range,sqnorms,color='r')
-	plt.plot(_range,sqnorms,color='r')
-
-
-
-
-
-def intersect(x,y):
-	return range(max(x[0],y[0]),min(x[-1],y[-1])+1)
-
-"""
-
-
-
-#def L2(functions,X_dist,X_density,n_samples,key):
-#	X_dist()
-#
-#def L2_from_data(Y,X,X_density):
-#
-#	densities=jnp.repeat(jnp.expand_dims(X_density(X),axis=0),Y.shape[0],axis=0)
-#	return jnp.average(Y.square/densities,axis=1)
-#	
-#
-#def check_L2(X,X_density,key,n_centers=5):
-#
-#	(n_samples,dim)=X.shape
-#	
-#	centers=jax.random.normal(n_centers,dim)
-#	centers_=jnp.repeat(jnp.expand_dims(centers,axis=1),n_samples,axis=1)
-#	X_=jnp.repeat(jnp.expand_dims(X,axis=0),n_centers,axis=0)
-#
-#	displacements=X_-centers_
-#	Y=jnp.exp(-jnp.sum(displacements.square,axis=-1)/2)/jnp.sqrt(2*math.pi)**dim
-#
-#	l2=L2_from_data(Y,X,X_density)
-#	np.testing.assert_allclose(l2,jnp.ones(n_centers),rtol=.01)
-
-
-
-
-"""
-def estimate_var(f,X_distribution,n_samples,key):
-
-	X=X_distribution(key,n_samples)
-
-	Y=jax.vmap(f)(X)
-	variance=jnp.var(Y)
-
-	validate(Y)
-
-	return variance,Y
-
-
-
-def validate(Y):
-	Xs=Y.shape[0]
-	fs=Y.shape[1]
-	T=jnp.take(Y,np.array([0,Xs//2]),axis=0)
-	B=jnp.take(Y,np.array([Xs//2,Xs]),axis=0)
-	L=jnp.take(Y,np.array([0,fs//2]),axis=1)
-	R=jnp.take(Y,np.array([fs//2,fs]),axis=1)
-
-	vars_by_f=jnp.var(Y,axis=0)
-	vars_by_x=jnp.var(Y,axis=1)
-	print(jnp.var(vars_by_f))
-	print(jnp.var(vars_by_x))
-	print('')
-
-	print(jnp.var(T))
-	print(jnp.var(B))
-	print(jnp.var(L))
-	print(jnp.var(R))
-	print('')
-
-	print('var of first/last Xs log-ratio '+str(jnp.log(jnp.var(T)/jnp.var(B))))
-	print('var of first/last fs log-ratio '+str(jnp.log(jnp.var(L)/jnp.var(R))))
-	print('\n')
-	
-
-
-
-def lipschitz(f,Xdist,samples,eps,key):
-
-	key,*subkeys=jax.random.split(key,4)
-	X0=Xdist(subkeys[0],samples)
-	s=X0.shape
-	dXdist=canc.spherical(s[-2],s[-1],radius=eps)
-
-	dX=dXdist(subkeys[1],samples)
-	X1=X0+dX
-
-	dY=f(X1)-f(X0)
-	return jnp.max(jnp.abs(dY)/eps)
-"""
 
