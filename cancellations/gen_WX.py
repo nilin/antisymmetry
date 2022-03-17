@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import matplotlib.pyplot as plt
 import math
 import itertools
@@ -14,42 +15,63 @@ import jax
 import jax.numpy as jnp
 import optax
 import util
-import spherical
 import cancellation as canc
 import antisymmetry.mcmc as mcmc
-import DPP
-import opt
-import thetests as test	
+import bookkeep as bk
 
 
 
-def gen_W(key,shape,lossfunction=lambda w:1/util.mindist(w)):
 
-	instances,n,d=shape
-	W=test.normalize(jax.random.normal(key,shape=(1000*instances,n,d)))
-	loss=lossfunction(W)	
-	_,indices=jax.lax.top_k(-loss,instances)
-	return W[indices]
 
-	
+def genXs(key,n_,d,samples):
+	_,*keys=jax.random.split(key,100)
+	return {int(n):jax.random.normal(keys[n],shape=(samples,n,d)) for n in n_}
 
-def gen_WXs(instances,samples,n_range,d,key,savename='separated'):
-	key,*subkeys=jax.random.split(key,1000)
+def genWs(Wtype,key,n_,d,instances):
+	_,*keys=jax.random.split(key,100)
+	return {int(n):globals()['gen_W_'+Wtype](keys[n],shape=(instances,n,d)) for n in n_}
 
-	W_={}
-	for n in n_range:
-		print(n)
-		if savename=='separated':
-			W_[int(n)]=gen_W(subkeys[2*n],shape=(instances,n,d),lossfunction=util.Coulomb)
-		else:
-			W_[int(n)]=jax.random.normal(subkeys[2*n],shape=(instances,n,d))/jnp.sqrt(n*d)
-	X_={int(n):jax.random.normal(subkeys[2*n+1],shape=(samples,n,d)) for n in n_range}
-	bookkeep.savedata((W_,X_,instances,samples,n_range,d),savename+' d='+str(d))
+def gen_W_normal(key,shape):
+	(_,n,d)=shape
+	return jax.random.normal(key,shape)/jnp.sqrt(n*d)
+
+def gen_W_separated(key,shape):
+	return util.normalize(separate(gen_W_normal(key,shape)))
+
+def separate(W,iterations=100,optimizer=optax.rmsprop(.01),smoothingperiod=25):
+	(instances,n,d)=W.shape
+	print(n)
+	state=optimizer.init(W)
+
+	losses=[]
+	for i in range(iterations):
+		loss,grads=jax.value_and_grad(energy)(W)
+		updates,_=optimizer.update(grads,state,W)
+		W=optax.apply_updates(W,updates)
+		losses.append(loss)
+		bk.printbar(loss/losses[0],loss,i)
+	return W
+
+def softCoulomb(X):
+	eps=.001
+	dists=jnp.sqrt(util.pairwisesquaredists(X)+eps)
+	energies=jnp.triu(1/dists,k=1)
+	return jnp.sum(energies,axis=(-2,-1))
+
+energy=lambda W:jnp.average(softCoulomb(W))+jnp.sum(jnp.square(W))
+
 
 
 key=jax.random.PRNGKey(0)
-gen_WXs(1000,1000,jnp.arange(2,9),3,key,'separated')
-#genWXs(1000,1000,jnp.arange(2,9),3,key,'trivial')
-gen_WXs(1,10000,jnp.arange(2,9),3,key,'trivial 1 10000')
-
+key1,key2=jax.random.split(key)
+Wtype={'n':'normal','s':'separated'}[sys.argv[1]]
+nmax=int(sys.argv[2])
+n_=range(2,nmax+1)
+d=3
+instances=1000
+samples=1000
+Ws=genWs(Wtype,key1,n_,d,instances)
+deltas={int(n):util.L2norm(util.mindist(Ws[n])) for n in n_}
+Xs=genXs(key2,n_,d,samples)
+bk.savedata({'Ws':Ws,'Xs':Xs,'Wtype':Wtype,'instances':instances,'samples':samples,'d':d,'n_':n_,'deltas':deltas},Wtype+'/WX')
 

@@ -28,7 +28,7 @@ subfolder='abbrev/'
 
 activationnames=['osc','HS','ReLU','exp','tanh','DReLU']
 proxynames=['Z','OP','polyOP','polyZ','OCP','polyOCP','polyOCP_proxy','extendedpolyOP']
-defaultstyles={'Z':'g--','OP':'k--','polyOP':'k','polyZ':'g','OCP':'r--','polyOCP':'r','polyOCP_proxy':'k-.','extendedpolyOP':'m'}
+defaultstyles={'Z':'g--','OP':'k--','polyOP':'k','polyZ':'g','OCP':'r--','polyOCP':'r','polyOCP_proxy':'y:','extendedpolyOP':'m'}
 
 
 
@@ -143,7 +143,7 @@ def data_and_proxy(files,proxies,colors,markers,**kwargs):
 	savename=' '.join(files)+' _ '+' '.join(proxies)
 	plt.savefig('plots/'+savename+'.pdf')
 
-def data_and_proxy_separate(files,proxies,styles='default',same_ylim=False,**kwargs):
+def data_and_proxy_separate(files,proxies,styles='default',subfolder='',same_ylim=False,**kwargs):
 	activations=[util.activations[f] for f in files]
 	n=len(files)
 	if same_ylim:
@@ -157,7 +157,7 @@ def data_and_proxy_separate(files,proxies,styles='default',same_ylim=False,**kwa
 		plotproxies(activations[i],proxies,8,styles=styles)
 		plotdata([files[i]],['b'])
 		savename=files[i]+' _ '+' '.join(proxies)
-		plt.savefig('plots/'+savename+'.pdf')
+		plt.savefig('plots/'+subfolder+savename+'.pdf')
 
 def ylimfromfiles(files):
 	mins=[]
@@ -170,34 +170,18 @@ def ylimfromfiles(files):
 	return min(mins),max(maxs)*padratio
 
 
-proxies=['polyOCP','OCP','polyZ']
-colors=['r','g','b','m']
-colormarkers=['r','r:','k:']
-markers=['-','--',':']
-
-
-
-
 
 data_only(activationnames,['k','g','b','r','m','c'],'abbrev_separated/')
 data_only(activationnames,['k','g','b','r','m','c'],'abbrev/')
 
 
-### test all proxies ###
-data_and_proxy_separate(['ReLU'],proxynames)
+### test all proxies on all functions ###
+data_and_proxy_separate(activationnames,proxynames,subfolder='all/')
+
+### main proxies ###
+data_and_proxy_separate(activationnames,['OP','polyOP','OCP','polyOCP'],subfolder='mainproxies/')
+
+### polyOCP improvement by direct minimization ###
+data_and_proxy_separate(activationnames,['polyOCP','polyOCP_proxy'],['r','k'],'polyOCP/')
 
 
-
-data_and_proxy_separate(activationnames,['OP','polyOP','OCP','polyOCP'])
-data_and_proxy_separate(activationnames,['polyOCP','polyOCP_proxy'],['r','k'])
-#
-#data_and_proxy_separate(['tanh'],['polyOP','extendedpolyOP','polyOCP'],['r','r:','k'])
-#
-#data_and_proxy_separate(['tanh'],['polyOCP','polyOCP_proxy'],['r','r:'])
-#data_and_proxy_separate(['HS','ReLU'],proxies,colormarkers)
-#data_and_proxy_separate(['HS'],['polyOCP','polyOCP_proxy'],['r','r:'])
-#data_and_proxy_separate(['ReLU'],['polyOCP','polyOCP_proxy'],['r','r:'])
-#data_and_proxy_separate(['exp'],['polyOCP','polyOCP_proxy'],['r','r:'])
-#data_and_proxy_separate(['HS'],proxies,colormarkers)
-#data_and_proxy_separate(['osc','exp'],proxies,colormarkers)
-#

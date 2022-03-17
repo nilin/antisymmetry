@@ -13,19 +13,18 @@ import jax
 import jax.numpy as jnp
 import optax
 import cancellation as canc
-import DPP
 	
 
 pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
 
 
 ReLU=lambda x:(jnp.abs(x)+x)/2
-#DReLU=lambda x:jnp.min(ReLU(x),1)
 DReLU=lambda x:(jnp.abs(x+1)-jnp.abs(x-1))/2
 heaviside=lambda x:jnp.heaviside(x,1)
 osc=lambda x:jnp.sin(100*x)
+softplus=lambda x:jnp.log(jnp.exp(x)+1)
 
-activations={'osc':osc,'HS':heaviside,'ReLU':ReLU,'exp':jnp.exp,'tanh':jnp.tanh,'DReLU':DReLU}
+activations={'softplus':softplus,'osc':osc,'HS':heaviside,'ReLU':ReLU,'exp':jnp.exp,'tanh':jnp.tanh,'DReLU':DReLU}
 
 
 L2norm=lambda y:jnp.sqrt(jnp.average(jnp.square(y)))

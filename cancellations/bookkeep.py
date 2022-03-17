@@ -12,11 +12,19 @@ import copy
 import jax
 import jax.numpy as jnp
 import optax
+import os
 import cancellation as canc
-import DPP
-	
 
 
+
+
+
+
+def mkdir(path):
+	try:
+		os.mkdir(path)
+	except OSError:
+		pass
 
 def savedata(data,filename):
         filename='data/'+filename
@@ -64,3 +72,6 @@ def saveplot(datanames,savename,colors,moreplots=[],draw=False,connect=False,sca
 	if draw:
 		plt.show()
 			
+def printbar(relwidth,loss,i):
+	fullwidth=100;
+	print((7-len(str(i)))*' '+str(i)+' rounds done. Loss: ['+(round(fullwidth*min(relwidth,1)))*'\u2588'+(fullwidth-round(relwidth*fullwidth))*'_'+'] '+str(loss),end='\r')
