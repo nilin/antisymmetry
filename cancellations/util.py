@@ -16,8 +16,8 @@ import optax
 
 pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
 
-
 ReLU=lambda x:(jnp.abs(x)+x)/2
+#ReLU=lambda x:jnp.max(x,jnp.zeros(x.shape))
 DReLU=lambda x:(jnp.abs(x+1)-jnp.abs(x-1))/2
 heaviside=lambda x:jnp.heaviside(x,1)
 osc=lambda x:jnp.sin(100*x)
@@ -131,10 +131,6 @@ def as_parallel_functions(a,functionbasis):
 	def functions(x):
 		Y=functionbasis(x)
 		out=jax.vmap(jnp.dot,in_axes=(0,0),out_axes=0)(Y,a)
-#		print(Y)
-#		print(a)
-#		print('out')
-#		print(out)
 		return out
 	return functions
 

@@ -24,55 +24,57 @@ import permutations
 
 
 
-		
 
-def register_partial_sums(W,X,activation,prefix,start,stop=-1):
-	
-	a=start
-	cumulative_sum=zeros(W,X)
+def combine(ac_name,Wtype,n):
+
+	activation=util.activations[ac_name]
+	dirpath='partialsums/'+Wtype
+	prefix=dirpath+'/'+ac_name+' n='+str(n)+' range='
+
+	a=0
+	b=0
+	N=math.factorial(n)
+
+	checkpoints=[]
 	blocksums=[]
-	t=bk.Stopwatch()
-	n=W.shape[-2]
-	if stop==-1:
-		stop=math.factorial(n)
+	while b<N:
+		b=b+720
 
-	while a<stop:
-		bk.printbar((a-start)/(stop-start),str(round(blocksize/t.tick()))+' terms per second.')
+		filepath=prefix+str(a)+' '+str(b)
+		if os.path.exists('data/'+filepath):
+			print(filepath)
+			data=bk.getdata(filepath)
+			S=data['result']
+			blocksums.append(S)
+			checkpoints.append(b)
+			a=b	
 
-		S,_=partial_sum(W,X,activation,a)
-		cumulative_sum=cumulative_sum+S
-		blocksums.append(S)
-		a=a+blocksize
+	assert(checkpoints[-1]==N)
+	return sum(blocksums)/jnp.sqrt(N)
+
+
+
+def test_combine(n):
 	
-		if a%5040==0:
-			print('\n'+50*'-'+' saved interval ['+str(start)+','+str(a)+') '+50*'-')
-			bk.savedata({'result':cumulative_sum,'interval':(start,a),'blocksums':blocksums,'blocksize':blocksize,'W':W,'X':X},prefix+str(start)+' '+str(a))
+	norm_=util.L2norm(combine('ReLU','normal',n))
+	n_,norms=bk.getdata('normal/'+str(n)+'/ReLU')
 
-	print('Reached '+str(stop))
+	print(100*'-')	
+	print(norm_)
+	print(norms)
+	assert(jnp.abs(jnp.log(norm_/norms[-1]))<.001)
+	print(100*'-')	
 
 
-		
+
 """
-combine_partial_sums.py ReLU n 10 0
+combine_partial_sums.py ReLU n 10
 """
+test_combine(7)
+
 
 ac_name=sys.argv[1]
 Wtype={'s':'separated','n':'normal'}[sys.argv[2]]
 n=int(sys.argv[3])
-activation=util.activations[ac_name]
 
-dirpath='partialsums/'+Wtype
-prefix=dirpath+'/'+ac_name+' n='+str(n)+' range='
-
-a=0
-b=0
-N=math.factorial(n)
-
-while b<N:
-	filename=prefix+str(a)+' '+str(b)
-	
-	b=b+120
-
-
-
-
+print(jnp.average(combine(ac_name,Wtype,n)))

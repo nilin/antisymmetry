@@ -91,7 +91,7 @@ def sign(p):
 	p_j=jnp.repeat(jnp.expand_dims(jnp.array(p),axis=0),n,axis=0)
 	p_i=p_j.T
 	inversions=jnp.sum(jnp.triu(jnp.heaviside(-(p_j-p_i),0)))
-	return int((-1)**inversions)
+	return int(1-2*(inversions%2))
 
 def perm_as_matrix_1(p):
 	n=len(p)
@@ -102,11 +102,10 @@ def perm_as_matrix_1(p):
 
 def perm_as_matrix_2(p):
 	n=len(p)
-	i_matrix=jnp.repeat(jnp.expand_dims(jnp.arange(n),axis=1),n,axis=1)
-	discretedelta=lambda x,i:util.ReLU(-jnp.square(x-i)+1)
-	P=jax.vmap(discretedelta,in_axes=(-1,0))(i_matrix,jnp.array(p))
-
-	return P
+	i_=jnp.repeat(jnp.expand_dims(jnp.arange(n),axis=1),n,axis=1)
+	diffs=jax.vmap(jnp.add,in_axes=(0,None))(i_,-jnp.array(p))
+	discretedelta=lambda x:util.ReLU(-jnp.square(x)+1)
+	return discretedelta(diffs)
 
 perm_as_matrix=perm_as_matrix_2
 
@@ -136,28 +135,39 @@ def performancetest(n):
 
 	p=id(n)
 	for i in range(N):
-		p=nextperm(p)
+		nextperm(p)
 
 	print('next_perm '+str(N/clock.tick())+'/second')
 
 	for i in range(N):
-		p=k_to_perm(i,n)
+		k_to_perm(i,n)
 
 	print('k_to_perm '+str(N/clock.tick())+'/second')
 
 	p=id(n)
 	for i in range(N):
-		P=perm_as_matrix_1(p)
+		perm_as_matrix_1(p)
 		p=nextperm(p)
 
 	print('perm_as_matrix_1: '+str(N/clock.tick())+'/second')
 
 	p=id(n)
 	for i in range(N):
-		P=perm_as_matrix_2(p)
+		perm_as_matrix_2(p)
 		p=nextperm(p)
 
 	print('perm_as_matrix_2: '+str(N/clock.tick())+'/second')
+	
+
+	p=id(n)
+	for i in range(N):
+		sign(p)
+		p=nextperm(p)
+
+	print('sign: '+str(N/clock.tick())+'/second')
+
+
+	
 
 
 def test(n):

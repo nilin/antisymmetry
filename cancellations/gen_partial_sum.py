@@ -24,8 +24,7 @@ import permutations
 
 
 
-blocksize=120
-#blocksize=5040
+blocksize=720
 
 def compute_term(W,X,activation,p):
 	I,n,d=W.shape
@@ -53,6 +52,8 @@ def partial_sum(W,X,activation,start):
 	for i in range(blocksize):
 		S=S+compute_term(W,X,activation,p)
 		p=permutations.nextperm(p)	
+		if(i%24==0):
+			bk.printbar(i/blocksize,'')
 	return S,{'start':p0,'next':p}
 		
 
@@ -61,22 +62,28 @@ def register_partial_sums(W,X,activation,prefix,start,stop=-1):
 	a=start
 	cumulative_sum=zeros(W,X)
 	blocksums=[]
-	t=bk.Stopwatch()
+	timer=bk.Stopwatch()
 	n=W.shape[-2]
+	N=math.factorial(n)
 	if stop==-1:
-		stop=math.factorial(n)
+		stop=N
 
+	prevfilepath='nonexistent'
 	while a<stop:
-		bk.printbar((a-start)/(stop-start),str(round(blocksize/t.tick()))+' terms per second.')
+
 
 		S,_=partial_sum(W,X,activation,a)
 		cumulative_sum=cumulative_sum+S
 		blocksums.append(S)
 		a=a+blocksize
 	
-		if a%5040==0:
-			print('\n'+50*'-'+' saved interval ['+str(start)+','+str(a)+') '+50*'-')
-			bk.savedata({'result':cumulative_sum,'interval':(start,a),'blocksums':blocksums,'blocksize':blocksize,'W':W,'X':X},prefix+str(start)+' '+str(a))
+		filepath=prefix+str(start)+' '+str(a)			
+		bk.savedata({'result':cumulative_sum,'interval':(start,a),'W':W,'X':X},filepath)
+		if os.path.exists('data/'+prevfilepath):
+			removepath='data/'+prevfilepath
+			os.remove(removepath)
+		prevfilepath=filepath
+		print('\n\n'+str(a)+' terms. '+str(round(blocksize/timer.tick()))+' terms per second.'); bk.printbar(a/N,''); print('\n\n')
 
 	print('Reached '+str(stop))
 
@@ -91,6 +98,10 @@ Wtype={'s':'separated','n':'normal'}[sys.argv[2]]
 n=int(sys.argv[3])
 start=int(sys.argv[4])
 activation=util.activations[ac_name]
+if len(sys.argv)>5:
+	stop=int(sys.argv[5])
+else:
+	stop=math.factorial(n)
 
 dirpath='partialsums/'+Wtype
 bk.mkdir('data/'+dirpath)
@@ -102,4 +113,4 @@ print('Computing partial sum for '+ac_name+' activation, '+Wtype+' weights, and 
 print('Starting at the (including) k(permutation)='+str(start)+' term.')
 
 
-register_partial_sums(W,X,activation,dirpath+'/'+ac_name+' n='+str(n)+' range=',start)
+register_partial_sums(W,X,activation,dirpath+'/'+ac_name+' n='+str(n)+' range=',start,stop)

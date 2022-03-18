@@ -83,4 +83,4 @@ def saveplot(datanames,savename,colors,moreplots=[],draw=False,connect=False,sca
 			
 def printbar(relwidth,msg):
 	fullwidth=100;
-	print('Loss: ['+(round(fullwidth*min(relwidth,1)))*'\u2588'+(fullwidth-round(relwidth*fullwidth))*'_'+'] '+msg,end='\r')
+	print('['+(int(math.ceil(fullwidth*min(relwidth,1))))*'\u2588'+(fullwidth-int(math.ceil(relwidth*fullwidth)))*'_'+'] '+msg,end='\r')
