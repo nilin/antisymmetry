@@ -18,6 +18,15 @@ import cancellation as canc
 
 
 
+class Stopwatch:
+	def __init__(self):
+		self.time=0
+		self.tick()
+
+	def tick(self):
+		elapsed=time.perf_counter()-self.time
+		self.time=time.perf_counter()
+		return elapsed
 
 
 def mkdir(path):
@@ -72,6 +81,6 @@ def saveplot(datanames,savename,colors,moreplots=[],draw=False,connect=False,sca
 	if draw:
 		plt.show()
 			
-def printbar(relwidth,loss,i):
+def printbar(relwidth,msg):
 	fullwidth=100;
-	print((7-len(str(i)))*' '+str(i)+' rounds done. Loss: ['+(round(fullwidth*min(relwidth,1)))*'\u2588'+(fullwidth-round(relwidth*fullwidth))*'_'+'] '+str(loss),end='\r')
+	print('Loss: ['+(round(fullwidth*min(relwidth,1)))*'\u2588'+(fullwidth-round(relwidth*fullwidth))*'_'+'] '+msg,end='\r')

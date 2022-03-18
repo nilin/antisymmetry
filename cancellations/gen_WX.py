@@ -40,7 +40,7 @@ def gen_W_separated(key,shape):
 
 def separate(W,iterations=100,optimizer=optax.rmsprop(.01),smoothingperiod=25):
 	(instances,n,d)=W.shape
-	print(n)
+	print('\n'+str(n))
 	state=optimizer.init(W)
 
 	losses=[]
@@ -49,7 +49,7 @@ def separate(W,iterations=100,optimizer=optax.rmsprop(.01),smoothingperiod=25):
 		updates,_=optimizer.update(grads,state,W)
 		W=optax.apply_updates(W,updates)
 		losses.append(loss)
-		bk.printbar(loss/losses[0],loss,i)
+		bk.printbar(loss/losses[0],'')
 	return W
 
 def softCoulomb(X):
@@ -68,10 +68,15 @@ Wtype={'n':'normal','s':'separated'}[sys.argv[1]]
 nmax=int(sys.argv[2])
 n_=range(2,nmax+1)
 d=3
-instances=1000
-samples=1000
-Ws=genWs(Wtype,key1,n_,d,instances)
-deltas={int(n):util.L2norm(util.mindist(Ws[n])) for n in n_}
-Xs=genXs(key2,n_,d,samples)
-bk.savedata({'Ws':Ws,'Xs':Xs,'Wtype':Wtype,'instances':instances,'samples':samples,'d':d,'n_':n_,'deltas':deltas},Wtype+'/WX')
 
+def gen(instances,samples,suffix=''):
+	Ws=genWs(Wtype,key1,n_,d,instances)
+	deltas={int(n):util.L2norm(util.mindist(Ws[n])) for n in n_}
+	Xs=genXs(key2,n_,d,samples)
+	bk.savedata({'Ws':Ws,'Xs':Xs,'Wtype':Wtype,'instances':instances,'samples':samples,'d':d,'n_':n_,'deltas':deltas},Wtype+'/WX'+suffix)
+
+if len(sys.argv)>3 and sys.argv[3]=='small':
+	print('Generating small')
+	gen(100,100,' small')
+else:
+	gen(1000,1000)
