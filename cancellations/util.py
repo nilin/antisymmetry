@@ -12,7 +12,6 @@ import copy
 import jax
 import jax.numpy as jnp
 import optax
-import cancellation as canc
 	
 
 pwr=lambda x,p:jnp.power(x,p*jnp.ones(x.shape))
@@ -24,7 +23,8 @@ heaviside=lambda x:jnp.heaviside(x,1)
 osc=lambda x:jnp.sin(100*x)
 softplus=lambda x:jnp.log(jnp.exp(x)+1)
 
-activations={'softplus':softplus,'osc':osc,'HS':heaviside,'ReLU':ReLU,'exp':jnp.exp,'tanh':jnp.tanh,'DReLU':DReLU}
+#activations={'softplus':softplus,'osc':osc,'HS':heaviside,'ReLU':ReLU,'exp':jnp.exp,'tanh':jnp.tanh,'DReLU':DReLU}
+activations={'exp':jnp.exp,'HS':heaviside,'ReLU':ReLU,'tanh':jnp.tanh,'softplus':softplus,'DReLU':DReLU,'osc':osc}
 
 
 L2norm=lambda y:jnp.sqrt(jnp.average(jnp.square(y)))

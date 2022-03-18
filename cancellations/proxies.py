@@ -69,3 +69,14 @@ def polyOCP_proxynorm(key,activation,W,X):
 	p=util.poly_as_function(a)
 	r=lambda x:activation(x)-p(x)
 
+
+"""
+activation-specific proxies
+"""
+def exactexp(W,X):
+	n=W.shape[-2]
+	nfactor=1.0
+	for k in range(1,n+1):
+		nfactor=nfactor/jnp.sqrt(k)
+	instances_samples_n_n=jnp.swapaxes(jnp.exp(jnp.inner(W,X)),1,2)
+	return nfactor*jnp.linalg.det(instances_samples_n_n)

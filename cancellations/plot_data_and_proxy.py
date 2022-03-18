@@ -27,7 +27,7 @@ key,*keys=jax.random.split(key,1000)
 
 activationnames=['osc','HS','ReLU','exp','tanh','DReLU']
 proxynames=['Z','OP','polyOP','polyZ','OCP','polyOCP','polyOCP_proxy','extendedpolyOP']
-defaultstyles={'Z':'g--','OP':'k--','polyOP':'k:','polyZ':'g:','OCP':'r--','polyOCP':'r:','polyOCP_proxy':'y:','extendedpolyOP':'m'}
+defaultstyles={'OP':'k:','Z':'k-.','polyOP':'r:','polyZ':'r-.','OCP':'k--','polyOCP':'r--','polyOCP_proxy':'y:','extendedpolyOP':'m'}
 
 
 
@@ -44,25 +44,29 @@ def evalproxies(activation,proxychoices,n_,datafolder):
 """
 color by data, style by estimate
 """
-def multiple_activations(ac_name_color,proxy_name_style,WXfolder,datafolder):
+def multiple_activations(ac_name_color,proxy_name_style,WXfolder,datafolder,plotfolder):
 
 	plt.figure()
 	plt.yscale('log')
 	for ac_name,color in ac_name_color.items():
-		n_,norms=bk.getdata(datafolder+'/'+ac_name)
-		plt.plot(n_,norms,color=color,marker='o')
+		try:
+			n_,norms=bk.getdata(datafolder+'/'+ac_name)
+		except:
+			print('missing '+ac_name+', skipping')
+			continue
+		plt.plot(n_,norms,color=color,marker='o',ms=3)
 	
 		norms_table=evalproxies(util.activations[ac_name],proxy_name_style.keys(),n_,WXfolder)	
 		[plt.plot(n_,norms_table[p],color=color,ls=ls) for p,ls in proxy_name_style.items()]
 		
-	savename=' '.join(ac_name_color)
-	plt.savefig('plots/'+savename+'.pdf')
+	savename=' '.join(ac_name_color)+' _ '+' '.join(proxy_name_style)
+	plt.savefig(plotfolder+'/'+savename+'.pdf')
 
 
 """
 each estimate a different color and style
 """
-def one_plot_per_activation(ac_names,proxychoices,WXfolder,datafolder,**kwargs):
+def one_plot_per_activation(ac_names,proxychoices,WXfolder,datafolder,plotfolder,**kwargs):
 
 	for ac_name in ac_names:
 		plt.figure()
@@ -70,14 +74,18 @@ def one_plot_per_activation(ac_names,proxychoices,WXfolder,datafolder,**kwargs):
 		if 'ylim' in kwargs:
 			plt.ylim(kwargs.get('ylim'))
 
-		n_,norms=bk.getdata(datafolder+'/'+ac_name)
+		try:
+			n_,norms=bk.getdata(datafolder+'/'+ac_name)
+		except:
+			print('missing '+ac_name+', skipping')
+			continue
 		plt.plot(n_,norms,'bo-')
 
 		norms_table=evalproxies(util.activations[ac_name],proxychoices,n_,WXfolder)
 		[plt.plot(n_,norms_table[p],defaultstyles[p]) for p in proxychoices]
 
 		savename=ac_name+' _ '+' '.join(proxychoices)
-		plt.savefig('plots/singledata/'+savename+'.pdf')
+		plt.savefig(plotfolder+'/singledata/'+savename+'.pdf')
 
 
 def make_colors(l):
@@ -85,30 +93,27 @@ def make_colors(l):
 	palette=sns.color_palette(None,len(l))
 	return {l[i]:palette[i] for i in range(len(l))}	
 
-def cutrange(n_,vals,nmax):
-	n_vals=zip(n_,vals)
-	n_vals=list(filter(lambda nv:nv[1]<=nmax,n_vals))
-	n_,vals=zip(*n_vals)
-	return n_,vals
 
 
 Wtype={'n':'normal','s':'separated'}[sys.argv[1]]
 WXfolder=Wtype
 
-nmax=sys.argv[2]
-datafolder=WXfolder+'/'+str(nmax)
+try:
+	subfolder=sys.argv[2]
+except:
+	subfolder='maximal'
+datafolder=WXfolder+'/'+str(subfolder)
 
-multiple_activations(make_colors(util.activations.keys()),{'polyOCP':'dotted'},WXfolder,datafolder)
-#multiple_activations({'ReLU':'red','HS':'blue'},{'polyOCP':'dotted'},WXfolder,datafolder)
+plotfolder='plots/'+Wtype
+bk.mkdir(plotfolder)
+bk.mkdir(plotfolder+'/singledata')
 
 
-### test all proxies on all functions ###
-#one_plot_per_activation(activationnames,proxynames,datafolder)
+### all activation functions in one plot ###
+multiple_activations(make_colors(util.activations.keys()),{'polyOCP':'dotted'},WXfolder,datafolder,plotfolder)
+multiple_activations(make_colors(util.activations.keys()),{},WXfolder,datafolder,plotfolder)
+
 
 #### main proxies ###
-one_plot_per_activation(util.activations.keys(),['OP','polyOP','OCP','polyOCP'],WXfolder,datafolder)
-#
-#### polyOCP improvement by direct minimization ###
-#one_plot_per_activation(activationnames,['polyOCP','polyOCP_proxy'],['r','k'],'polyOCP/')
-#
-#
+one_plot_per_activation(util.activations.keys(),['OP','polyOP','OCP','polyOCP'],WXfolder,datafolder,plotfolder)
+

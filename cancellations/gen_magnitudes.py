@@ -15,13 +15,16 @@ import jax.numpy as jnp
 import optax
 import util
 import sys
+import os
+import shutil
 import cancellation as canc
 import antisymmetry.mcmc as mcmc
+import proxies
 
 
 
 
-def gen_magnitudes(Wtype,activation,nmax=8):
+def gen_magnitudes(Wtype,compute_from_WX,nmax=8):
 	Ws,Xs=[bk.getdata(Wtype+'/WX')[k] for k in ('Ws','Xs')]
 	norms=[]
 	n_range=range(2,nmax+1)
@@ -29,17 +32,39 @@ def gen_magnitudes(Wtype,activation,nmax=8):
 		print(n)
 		W=Ws[n]
 		X=Xs[n]
-		norms.append(util.L2norm(canc.apply_alpha(W,X,activation)))
+		norms.append(util.L2norm(compute_from_WX(W,X)))
 	return n_range,norms
+
+
+def collectmaximaldata():
+	for Wtype in ['separated','normal']:
+		maxpath='data/'+Wtype+'/maximal'
+		bk.mkdir('data/'+Wtype+'/maximal')
+		for n in range(20):
+			for ac_name,activation in util.activations.items():	
+				path='data/'+Wtype+'/'+str(n)+'/'+ac_name
+				if os.path.exists(path):
+					shutil.copyfile(path,maxpath+'/'+ac_name)
+
+
+
+
 		
 
 
 Wtype={'s':'separated','n':'normal'}[sys.argv[1]]
-print(Wtype)
 nmax=int(sys.argv[2])
 
 bk.mkdir('data/'+Wtype+'/'+str(nmax))
 
 for ac_name,activation in util.activations.items():	
-	print('activation:'+ac_name)
-	bk.savedata(gen_magnitudes(Wtype,activation,nmax),Wtype+'/'+str(nmax)+'/'+ac_name)
+	path=Wtype+'/'+str(nmax)+'/'+ac_name
+	print(path)
+	if os.path.exists('data/'+path):
+		print('exists, skipping\n')
+		continue
+	compute_from_wx=lambda W,X:canc.apply_alpha(W,X,activation)
+	if ac_name=='exp':
+		compute_from_wx=proxies.exactexp
+	bk.savedata(gen_magnitudes(Wtype,compute_from_wx,nmax),Wtype+'/'+str(nmax)+'/'+ac_name)
+	collectmaximaldata()
