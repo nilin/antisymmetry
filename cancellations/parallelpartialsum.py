@@ -69,49 +69,12 @@ def partial_sum(W,X,ac_name,start,smallblocksize):
 
 
 
-def register_partial_sums(W,X,ac_name,prefix,start,stop=-1):
-	
-	smallblocksize=720
-	largeblocksize=5040
-	tasks=7
-	assert(smallblocksize*tasks==largeblocksize)
-
-	partialsumfunction=lambda a:partial_sum(W,X,ac_name,a,smallblocksize)
-
-	a=start
-	cumulative_sum=zeros(W,X)
-	timer=bk.Stopwatch()
-	n=W.shape[-2]
-	N=math.factorial(n)
-	if stop==-1:
-		stop=N
-	prevfilepath='nonexistent'
-
-	#with mp.Pool(tasks) as pool:
-	while a<stop:
-		#parallelsmallsums=pool.map(partialsumfunction,[a+smallblocksize*t for t in range(tasks)])
-		parallelsmallsums=[partialsumfunction(a+smallblocksize*t) for t in range(tasks)]
-		cumulative_sum=cumulative_sum+sum(parallelsmallsums)
-		a=a+largeblocksize
-	
-		filepath=prefix+str(start)+' '+str(a)			
-		bk.savedata({'result':cumulative_sum,'interval':(start,a),'W':W,'X':X},filepath)
-		if os.path.exists('data/'+prevfilepath):
-			removepath='data/'+prevfilepath
-			os.remove(removepath)
-		prevfilepath=filepath
-		print('\n\n'+str(a)+' terms. '+str(round(largeblocksize/timer.tick()))+' terms per second.'); bk.printbar(a/N,''); print('\n\n')
-
-	print('Reached '+str(stop))
-
-
-		
 """
 gen_partial_sum.py ReLU n 10 0
 """
 
 ac_name=sys.argv[1]
-Wtype={'s':'separated','n':'normal','ns':'normal small','ss':'separated small'}[sys.argv[2]]
+Wtype={'s':'separated','n':'normal','ss':'separated small','ns':'normal small'}[sys.argv[2]]
 n=int(sys.argv[3])
 start=int(sys.argv[4])
 if len(sys.argv)>5:
@@ -123,10 +86,52 @@ dirpath='partialsums/'+Wtype
 bk.mkdir('data/'+dirpath)
 
 W,X=[bk.getdata(Wtype+'/WX')[k][n] for k in ('Ws','Xs')]
+#
+#
+#print('Computing partial sum for '+ac_name+' activation, '+Wtype+' weights, and n='+str(n)+'.')
+#print('Starting at the (including) k(permutation)='+str(start)+' term.')
 
 
-print('Computing partial sum for '+ac_name+' activation, '+Wtype+' weights, and n='+str(n)+'.')
-print('Starting at the (including) k(permutation)='+str(start)+' term.')
 
 
-register_partial_sums(W,X,ac_name,dirpath+'/'+ac_name+' n='+str(n)+' range=',start,stop)
+
+tasks=8
+smallblocksize=630
+largeblocksize=tasks*smallblocksize
+
+
+
+def partialsumfunction(k):
+	return partial_sum(W,X,ac_name,k,smallblocksize)
+
+def testfun(x):
+	return -x
+
+if __name__=='__main__':
+
+	assert(5040%largeblocksize==0)
+
+	prefix=dirpath+'/'+ac_name+' n='+str(n)+' range='
+	a=start
+	cumulative_sum=zeros(W,X)
+	timer=bk.Stopwatch()
+	n=W.shape[-2]
+	N=math.factorial(n)
+	prevfilepath='nonexistent'
+
+	with mp.Pool(tasks) as pool:
+		while a<stop:
+			parallelsmallsums=pool.map(partialsumfunction,[a+smallblocksize*t for t in range(tasks)])
+			#parallelsmallsums=[partialsumfunction(a+smallblocksize*t) for t in range(tasks)]
+			cumulative_sum=cumulative_sum+sum(parallelsmallsums)
+			a=a+largeblocksize
+		
+			filepath=prefix+str(start)+' '+str(a)			
+			bk.savedata({'result':cumulative_sum,'interval':(start,a),'W':W,'X':X},filepath)
+			if os.path.exists('data/'+prevfilepath):
+				removepath='data/'+prevfilepath
+				os.remove(removepath)
+			prevfilepath=filepath
+			bk.printbar(a/N,str(a)+' terms. '+str(round(largeblocksize/timer.tick()))+' terms per second.')
+
+	print('Reached '+str(stop))
